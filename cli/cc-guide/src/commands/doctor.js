@@ -72,5 +72,3 @@ export async function doctorCommand() {
     console.log(chalk.green('\n✓ 配置检查通过，未发现问题'));
   }
 }
-
-export { doctorCommand };

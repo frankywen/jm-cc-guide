@@ -21,5 +21,3 @@ export async function listCommand() {
 
   console.log(chalk.gray('使用 cc-guide add <package> 安装扩展'));
 }
-
-export { listCommand };

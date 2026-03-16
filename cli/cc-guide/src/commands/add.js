@@ -46,5 +46,3 @@ export async function addCommand(packageName, options) {
 
   console.log(chalk.green(`\n✓ ${packageName} 安装完成`));
 }
-
-export { addCommand };

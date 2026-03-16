@@ -21,5 +21,3 @@ export async function updateCommand() {
     console.log(chalk.gray('手动更新: npm update -g cc-guide'));
   }
 }
-
-export { updateCommand };

@@ -165,5 +165,3 @@ async function askForExtensions(projectDir, sourceDir) {
   console.log(chalk.gray('  claude'));
   console.log(chalk.gray('  > 请告诉我你知道的核心概念'));
 }
-
-export { initCommand };
