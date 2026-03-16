@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+coverage/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Claude Code
+.claude/settings.local.json
+
+# Test artifacts
+*.log
+npm-debug.log*
+
+# Lock files (keep package-lock.json for reproducibility)
+# package-lock.json
