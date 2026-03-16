@@ -5,6 +5,9 @@ import { addCommand } from './commands/add.js';
 import { listCommand } from './commands/list.js';
 import { doctorCommand } from './commands/doctor.js';
 import { updateCommand } from './commands/update.js';
+import { configCommand } from './commands/config.js';
+import { interactiveCommand } from './commands/interactive.js';
+import { syncCommand } from './commands/sync.js';
 
 const program = new Command();
 
@@ -17,6 +20,7 @@ program
   .command('init')
   .description('初始化项目配置')
   .option('-f, --force', '强制覆盖现有文件')
+  .option('-m, --models <models>', '指定模型配置 (comma-separated: claude,gemini,agents)', 'claude')
   .action(initCommand);
 
 program
@@ -39,5 +43,25 @@ program
   .command('update')
   .description('更新到最新版本')
   .action(updateCommand);
+
+program
+  .command('config')
+  .description('配置管理')
+  .option('-l, --list', '列出当前配置')
+  .option('-r, --reset', '重置为默认配置')
+  .action(configCommand);
+
+program
+  .command('interactive')
+  .alias('i')
+  .description('交互式控制台模式')
+  .action(interactiveCommand);
+
+program
+  .command('sync')
+  .description('同步上游更新')
+  .option('-a, --apply', '自动应用更新')
+  .option('-c, --changelog', '查看变更日志')
+  .action(syncCommand);
 
 export { program };

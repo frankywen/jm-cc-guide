@@ -22,6 +22,11 @@ const PACKAGES = {
     name: 'jm-cc-guide-beginner-cn',
     description: '中文入门 - 零基础学习 Claude Code',
     skills: ['extensions/beginner-cn']
+  },
+  'agent-sdk': {
+    name: 'jm-cc-guide-agent-sdk',
+    description: 'Agent SDK - 构建自主代理应用',
+    skills: ['extensions/agent-sdk']
   }
 };
 

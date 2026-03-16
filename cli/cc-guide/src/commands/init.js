@@ -17,6 +17,27 @@ import { getAvailablePackages, getPackageInfo, getSourceDir } from '../lib/packa
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = path.join(__dirname, '..', 'templates', 'claude-md-template.md');
+const GEMINI_TEMPLATE_PATH = path.join(__dirname, '..', 'templates', 'gemini-md-template.md');
+const AGENTS_TEMPLATE_PATH = path.join(__dirname, '..', 'templates', 'agents-md-template.md');
+
+// 支持的模型配置
+const MODEL_CONFIGS = {
+  claude: {
+    file: 'CLAUDE.md',
+    template: TEMPLATE_PATH,
+    description: 'Claude Code 配置'
+  },
+  gemini: {
+    file: 'GEMINI.md',
+    template: GEMINI_TEMPLATE_PATH,
+    description: 'Gemini CLI 配置'
+  },
+  agents: {
+    file: 'AGENTS.md',
+    template: AGENTS_TEMPLATE_PATH,
+    description: '多模型统一配置'
+  }
+};
 
 export async function initCommand(options) {
   const projectDir = process.cwd();
@@ -24,20 +45,46 @@ export async function initCommand(options) {
 
   console.log(chalk.blue('\n🚀 Claude Code 协作指南 初始化\n'));
 
+  // 解析 models 选项
+  const models = parseModelsOption(options.models);
+
   // 检查项目状态
   const isProject = await isClaudeProject(projectDir);
   const hasMd = await hasClaudeMd(projectDir);
 
   if (hasMd && !options.force) {
     // 已有 CLAUDE.md
-    await handleExistingProject(projectDir, sourceDir);
+    await handleExistingProject(projectDir, sourceDir, models);
   } else {
     // 新项目或强制覆盖
-    await handleNewProject(projectDir, sourceDir, options.force);
+    await handleNewProject(projectDir, sourceDir, options.force, models);
   }
 }
 
-async function handleExistingProject(projectDir, sourceDir) {
+/**
+ * 解析 --models 选项
+ * @param {string} modelsStr - 逗号分隔的模型列表，如 "claude,gemini"
+ */
+function parseModelsOption(modelsStr) {
+  if (!modelsStr) {
+    return ['claude']; // 默认只创建 Claude 配置
+  }
+
+  const requestedModels = modelsStr.split(',').map(m => m.trim().toLowerCase());
+  const validModels = [];
+
+  for (const model of requestedModels) {
+    if (MODEL_CONFIGS[model]) {
+      validModels.push(model);
+    } else {
+      console.log(chalk.yellow(`警告: 未知的模型配置 "${model}"，已跳过`));
+    }
+  }
+
+  return validModels.length > 0 ? validModels : ['claude'];
+}
+
+async function handleExistingProject(projectDir, sourceDir, models) {
   const existingContent = await readClaudeMd(projectDir);
   const lineCount = await getClaudeMdLineCount(projectDir);
 
@@ -109,11 +156,14 @@ async function handleExistingProject(projectDir, sourceDir) {
   await copySkill(sourceDir, projectDir, 'core');
   console.log(chalk.green('✓ 已创建 .claude/skills/core/'));
 
+  // 创建多模型配置
+  await createModelConfigs(projectDir, models);
+
   // 询问是否安装扩展
   await askForExtensions(projectDir, sourceDir);
 }
 
-async function handleNewProject(projectDir, sourceDir, force) {
+async function handleNewProject(projectDir, sourceDir, force, models) {
   console.log(chalk.gray('创建新项目配置...'));
 
   // 创建目录结构
@@ -131,8 +181,37 @@ async function handleNewProject(projectDir, sourceDir, force) {
   await copySkill(sourceDir, projectDir, 'core');
   console.log(chalk.green('✓ 已创建 .claude/skills/core/'));
 
+  // 创建多模型配置
+  await createModelConfigs(projectDir, models);
+
   // 询问是否安装扩展
   await askForExtensions(projectDir, sourceDir);
+}
+
+/**
+ * 创建多模型配置文件
+ */
+async function createModelConfigs(projectDir, models) {
+  for (const model of models) {
+    if (model === 'claude') continue; // Claude 配置已经处理
+
+    const config = MODEL_CONFIGS[model];
+    if (!config) continue;
+
+    const targetPath = path.join(projectDir, config.file);
+
+    // 检查文件是否已存在
+    if (await fs.pathExists(targetPath)) {
+      console.log(chalk.gray(`  跳过 ${config.file}（已存在）`));
+      continue;
+    }
+
+    // 从模板复制
+    if (await fs.pathExists(config.template)) {
+      await fs.copy(config.template, targetPath);
+      console.log(chalk.green(`✓ 已创建 ${config.file}（${config.description}）`));
+    }
+  }
 }
 
 async function askForExtensions(projectDir, sourceDir) {

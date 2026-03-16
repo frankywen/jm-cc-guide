@@ -1,0 +1,17 @@
+{
+  "name": "agent-sdk",
+  "version": "1.0.0",
+  "description": "Agent SDK 扩展 - 构建自主代理应用",
+  "author": "jm-cc-guide",
+  "skills": [
+    "agent-sdk"
+  ],
+  "dependencies": [],
+  "keywords": [
+    "agent",
+    "sdk",
+    "automation",
+    "tools"
+  ],
+  "installCommand": "cc-guide add agent-sdk"
+}
