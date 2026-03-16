@@ -1,0 +1,7 @@
+{
+  "name": "jm-cc-guide-core",
+  "version": "1.0.0",
+  "description": "Claude Code 协作指南 - 基础层",
+  "author": "jm-cc-guide",
+  "skills": [".claude/skills/core"]
+}

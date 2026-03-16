@@ -1,0 +1,7 @@
+{
+  "name": "jm-cc-guide-workflows",
+  "version": "1.0.0",
+  "description": "Claude Code 协作指南 - 企业级工作流扩展",
+  "author": "jm-cc-guide",
+  "skills": [".claude/skills/extensions/workflows"]
+}

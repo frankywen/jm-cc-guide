@@ -1,0 +1,7 @@
+{
+  "name": "jm-cc-guide-development",
+  "version": "1.0.0",
+  "description": "Claude Code 协作指南 - 开发技能扩展",
+  "author": "jm-cc-guide",
+  "skills": [".claude/skills/extensions/development"]
+}

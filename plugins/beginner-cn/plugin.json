@@ -1,0 +1,7 @@
+{
+  "name": "jm-cc-guide-beginner-cn",
+  "version": "1.0.0",
+  "description": "Claude Code 协作指南 - 中文入门教程扩展",
+  "author": "jm-cc-guide",
+  "skills": [".claude/skills/extensions/beginner-cn"]
+}
