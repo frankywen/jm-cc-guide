@@ -70,10 +70,13 @@ jm-cc-guide/
 
 ### Phase 3: CLI工具
 
-**状态**: 🔜 规划中
+**状态**: ✅ 完成
 
 **产物**:
 - cli/cc-guide/
+  - init, add, list, doctor, update 命令
+  - 冲突检测（Levenshtein距离算法）
+  - 内容合并（带标记）
 
 **用户入口**: `cc-guide init`
 
