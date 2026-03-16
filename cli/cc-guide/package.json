@@ -1,0 +1,30 @@
+{
+  "name": "cc-guide",
+  "version": "1.0.0",
+  "description": "Claude Code 协作指南 CLI 工具",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "cc-guide": "./bin/cc-guide.js"
+  },
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "lint": "eslint src/"
+  },
+  "keywords": ["claude-code", "cli", "ai-collaboration"],
+  "author": "jm-cc-guide",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.0.0",
+    "chalk": "^5.3.0",
+    "inquirer": "^9.2.0",
+    "fs-extra": "^11.2.0",
+    "fast-levenshtein": "^3.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
