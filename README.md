@@ -2,7 +2,7 @@
 
 > Claude Code 协作指南 - 一站式知识库和工具链
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/your-repo/jm-cc-guide)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/frankywen/jm-cc-guide)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 
@@ -48,12 +48,30 @@ cp -r .claude/skills/core your-project/.claude/skills/
 
 适合新项目和已有项目。
 
-```bash
-# 安装 CLI
-npm install -g cc-guide
+**步骤 1：克隆项目并安装 CLI**
 
-# 初始化项目
-cd your-project
+```bash
+# 克隆项目
+git clone https://github.com/frankywen/jm-cc-guide.git
+cd jm-cc-guide
+
+# 安装 CLI 依赖
+cd cli/cc-guide
+npm install
+
+# 全局链接（使 cc-guide 命令全局可用）
+npm link
+```
+
+> **说明**：`npm link` 会创建一个全局符号链接，让你在任何目录都能使用 `cc-guide` 命令。
+
+**步骤 2：初始化你的项目**
+
+```bash
+# 进入你的项目目录
+cd /path/to/your-project
+
+# 初始化
 cc-guide init
 
 # 查看可用包
@@ -62,6 +80,13 @@ cc-guide list
 # 添加扩展
 cc-guide add development
 cc-guide add workflows
+```
+
+**卸载 CLI**
+
+```bash
+# 取消全局链接
+npm unlink -g cc-guide
 ```
 
 ### 方式三：插件包安装
