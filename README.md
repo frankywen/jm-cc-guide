@@ -2,7 +2,7 @@
 
 > Claude Code 协作指南 - 一站式知识库和工具链
 
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/frankywen/jm-cc-guide)
+[![Version](https://img.shields.io/badge/version-1.1.1-blue.svg)](https://github.com/frankywen/jm-cc-guide)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg)](https://nodejs.org/)
 
@@ -300,6 +300,7 @@ const agent = new Agent({
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| 1.1.1 | 2026-03-17 | 依赖更新、Node.js 引擎升级至 ≥20.0.0 |
 | 1.1.0 | 2026-03-16 | 新增 MCP/Hooks 示例、Agent SDK、多模型支持、交互模式 |
 | 1.0.0 | 2026-03-16 | Phase 3 完成，CLI 工具发布 |
 | 0.2.0 | 2026-03-16 | Phase 2 完成，插件包可用 |
