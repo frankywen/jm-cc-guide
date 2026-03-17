@@ -1,5 +1,6 @@
 import fs from 'fs-extra';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 // 包定义
 const PACKAGES = {
@@ -84,11 +85,19 @@ export async function getInstalledPackages(projectDir) {
  */
 export function getSourceDir() {
   // 从 CLI 安装位置查找源文件
-  // 开发时从项目根目录查找
+  // 使用 import.meta.url 获取当前文件位置
+  const currentFileUrl = import.meta.url;
+  const currentFilePath = fileURLToPath(currentFileUrl);
+
+  // cli/cc-guide/src/lib/package-manager.js -> 项目根目录
   const possiblePaths = [
+    // 开发模式: cli/cc-guide/src/lib/ -> ../../../..
+    path.resolve(currentFilePath, '..', '..', '..', '..', '..'),
+    // 安装模式: node_modules/cc-guide/src/lib/ -> ../../../..
+    path.resolve(currentFilePath, '..', '..', '..', '..'),
+    // 当前工作目录的上级
     path.resolve(process.cwd(), '..'),
     path.resolve(process.cwd(), '..', '..'),
-    path.resolve(process.cwd(), '..', '..', '..')
   ];
 
   for (const p of possiblePaths) {

@@ -54,6 +54,7 @@ func main() {
 			auth.POST("/rooms", handlers.TeacherOnly(), handlers.CreateRoom)
 			auth.GET("/rooms/:id", handlers.GetRoom)
 			auth.POST("/rooms/:id/join", handlers.JoinRoom)
+			auth.POST("/rooms/:id/answer", handlers.SubmitAnswer)
 			auth.PUT("/rooms/:id/status", handlers.UpdateRoomStatus)
 			auth.DELETE("/rooms/:id", handlers.DeleteRoom)
 		}

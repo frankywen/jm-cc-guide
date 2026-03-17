@@ -1,6 +1,9 @@
 package handlers
 
 import (
+	"strconv"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/jm-cc-guide/puzzle-classroom/backend/internal/services"
@@ -103,4 +106,54 @@ func DeleteRoom(c *gin.Context) {
 		return
 	}
 	utils.Success(c, gin.H{"message": "删除成功"})
+}
+
+func SubmitAnswer(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	roomID := c.Param("id")
+
+	var req struct {
+		Answer   string `json:"answer" binding:"required"`
+		Question string `json:"question" binding:"required"`
+		TimeSpent int   `json:"timeSpent"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, "参数错误")
+		return
+	}
+
+	// Parse question numbers (comma-separated string like "1,2,3,4")
+	var numbers []int
+	for _, s := range strings.Split(req.Question, ",") {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		n, err := strconv.Atoi(s)
+		if err != nil {
+			utils.BadRequest(c, "题目格式错误")
+			return
+		}
+		numbers = append(numbers, n)
+	}
+
+	if len(numbers) != 4 {
+		utils.BadRequest(c, "题目必须有4个数字")
+		return
+	}
+
+	// Validate answer
+	correct := services.ValidateGame24Answer(numbers, req.Answer)
+
+	// Save game record
+	record, err := services.SaveGameRecord(roomID, userID.(string), "game24", req.Question, req.Answer, correct, req.TimeSpent)
+	if err != nil {
+		utils.InternalError(c, "保存记录失败")
+		return
+	}
+
+	utils.Success(c, gin.H{
+		"correct": correct,
+		"score":   record.Score,
+	})
 }
