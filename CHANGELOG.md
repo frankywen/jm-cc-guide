@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.4] - 2026-03-17
+
+### Fixed
+- `init` command no longer overwrites existing CLAUDE.md with full guide
+- Creates minimal template for new projects instead of copying full documentation
+- Only adds skill reference to existing CLAUDE.md, preserving original content
+
+## [1.1.3] - 2026-03-17
+
+### Fixed
+- Restored Node.js 18 compatibility by downgrading inquirer to v8
+- Fixed `getSourceDir()` path resolution using `import.meta.url`
+
+### Added
+- E2E tests for puzzle-classroom demo using Playwright
+- Answer submission API endpoint for puzzle-classroom backend
+
+### Changed
+- Reverted dependency versions for Node.js 18 support:
+  - `inquirer` 13.3.2 → 8.2.6
+  - `commander` 14.0.3 → 11.1.0
+  - `jest` 30.3.0 → 29.7.0
+
 ## [1.1.2] - 2026-03-17
 
 ### Documentation

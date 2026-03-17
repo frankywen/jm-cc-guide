@@ -1,6 +1,6 @@
 {
   "name": "cc-guide",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "description": "Claude Code 协作指南 CLI 工具",
   "type": "module",
   "main": "src/index.js",
