@@ -42,19 +42,23 @@ export default function StudentRoom() {
 
   const connectWebSocket = async () => {
     if (!token) return;
+    // Register handlers and callbacks BEFORE connecting (for reconnection)
+    wsService.on('game:start', (msg) => {
+      setGameState('playing');
+      const data = msg.data as { numbers?: number[] } | undefined;
+      setQuestion(data?.numbers || []);
+      setTimeSpent(0);
+      setResult(null);
+      setAnswer('');
+    });
+    wsService.on('game:end', () => setGameState('finished'));
+    wsService.onConnect(() => {
+      wsService.send({ type: 'join_room', roomId });
+    });
     try {
       await wsService.connect(token);
       // Join the room via WebSocket to receive broadcasts
       wsService.send({ type: 'join_room', roomId });
-      wsService.on('game:start', (msg) => {
-        setGameState('playing');
-        const data = msg.data as { numbers?: number[] } | undefined;
-        setQuestion(data?.numbers || []);
-        setTimeSpent(0);
-        setResult(null);
-        setAnswer('');
-      });
-      wsService.on('game:end', () => setGameState('finished'));
     } catch (err) { console.error('WS failed:', err); }
   };
 
