@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# Compiled binaries
+*.exe
+*.exe~
+
+# Environment files
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test/debug files
+test-*.js
+test-*.mjs
