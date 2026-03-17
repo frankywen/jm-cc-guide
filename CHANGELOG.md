@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-03-17
+
+### Changed
+- Updated Node.js engine requirement from `>=18.0.0` to `>=20.0.0`
+
+### Dependencies
+- `commander` 11.1.0 → 14.0.3
+- `inquirer` 9.3.8 → 13.3.2
+- `jest` 29.7.0 → 30.3.0
+
+### CI/CD
+- Updated GitHub Actions to latest versions (checkout@v6, setup-node@v6, codecov@v5)
+- Removed Node.js 18.x from CI test matrix
+
 ## [1.1.0] - 2026-03-16
 
 ### Added
