@@ -6,10 +6,6 @@ on:
   pull_request:
     branches: [master, main]
 
-# Force Node.js 24 for GitHub Actions (deprecated Node.js 20 warning)
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -20,10 +16,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
@@ -38,7 +34,7 @@ jobs:
         run: npm test
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         if: matrix.node-version == '22.x'
         with:
           directory: cli/cc-guide/coverage
