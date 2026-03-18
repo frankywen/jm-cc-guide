@@ -8,6 +8,9 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// globalHub is the singleton hub instance
+var globalHub *Hub
+
 // Message represents a WebSocket message
 type Message struct {
 	Type   string      `json:"type"`
@@ -45,13 +48,20 @@ type BroadcastMessage struct {
 
 // NewHub creates a new Hub instance
 func NewHub() *Hub {
-	return &Hub{
+	hub := &Hub{
 		Clients:       make(map[string]*Client),
 		Rooms:         make(map[string]map[string]*Client),
 		Register:      make(chan *Client),
 		Unregister:    make(chan *Client),
 		broadcastChan: make(chan *BroadcastMessage),
 	}
+	globalHub = hub
+	return hub
+}
+
+// GetGlobalHub returns the global hub instance
+func GetGlobalHub() *Hub {
+	return globalHub
 }
 
 // Run starts the hub's main loop for handling client registration, unregistration, and broadcasting

@@ -8,6 +8,7 @@ import (
 
 	"github.com/jm-cc-guide/puzzle-classroom/backend/internal/models"
 	"github.com/jm-cc-guide/puzzle-classroom/backend/internal/services"
+	"github.com/jm-cc-guide/puzzle-classroom/backend/internal/ws"
 	"github.com/jm-cc-guide/puzzle-classroom/backend/pkg/utils"
 )
 
@@ -176,6 +177,19 @@ func SubmitAnswer(c *gin.Context) {
 				response["totalCompleted"] = progress.CompletedCount
 				response["totalQuestions"] = session.TotalQuestions
 				response["totalScore"] = progress.TotalScore
+
+				// Broadcast progress update to teacher
+				allProgress, _ := services.GetSessionProgress(req.SessionID)
+				hub := ws.GetGlobalHub()
+				if hub != nil {
+					hub.Broadcast(roomID, ws.Message{
+						Type: "progress:update",
+						Data: gin.H{
+							"sessionId": req.SessionID,
+							"students":  allProgress,
+						},
+					}, "")
+				}
 			}
 		}
 	}
@@ -260,5 +274,50 @@ func GetGameProgress(c *gin.Context) {
 	utils.Success(c, gin.H{
 		"session":  session,
 		"progress": progress,
+	})
+}
+
+// GetNextQuestion gets the next question from a session for the teacher
+func GetNextQuestion(c *gin.Context) {
+	userID, _ := c.Get("userID")
+
+	var req struct {
+		RoomID   string `json:"roomId" binding:"required"`
+		Index    int    `json:"index" binding:"min=0"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, "参数错误")
+		return
+	}
+
+	// Verify user is the teacher
+	room, err := services.GetRoomByID(req.RoomID)
+	if err != nil {
+		utils.NotFound(c, "房间不存在")
+		return
+	}
+	if room.TeacherID != userID.(string) {
+		utils.Error(c, 403, "无权操作")
+		return
+	}
+
+	// Get active session
+	session, err := services.GetActiveSession(req.RoomID)
+	if err != nil {
+		utils.NotFound(c, "没有进行中的游戏")
+		return
+	}
+
+	// Get question by index
+	question, err := services.GetSessionQuestionByIndex(session, req.Index)
+	if err != nil {
+		utils.BadRequest(c, "题目索引无效")
+		return
+	}
+
+	utils.Success(c, gin.H{
+		"question":     question,
+		"currentIndex": req.Index,
+		"sessionId":    session.ID,
 	})
 }

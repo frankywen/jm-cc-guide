@@ -104,31 +104,37 @@ export default function TeacherRoom() {
     }
   };
 
-  const nextQuestion = () => {
+  const nextQuestion = async () => {
     if (!sessionId || currentIndex >= totalQuestions - 1) return;
 
     const nextIndex = currentIndex + 1;
-    setCurrentIndex(nextIndex);
 
-    // Generate next question (in a real app, this would come from the session)
-    const numbers = [
-      Math.floor(Math.random() * 13) + 1,
-      Math.floor(Math.random() * 13) + 1,
-      Math.floor(Math.random() * 13) + 1,
-      Math.floor(Math.random() * 13) + 1
-    ];
-    setQuestion(numbers);
+    try {
+      // Get the next question from the session
+      const res: any = await api.post('/getNextQuestion', {
+        roomId,
+        index: nextIndex
+      });
 
-    // Broadcast next question to students
-    wsService.send({
-      type: 'game:next',
-      roomId,
-      data: {
-        sessionId,
-        currentIndex: nextIndex,
-        numbers
+      if (res.code === 0) {
+        const { question } = res.data;
+        setCurrentIndex(nextIndex);
+        setQuestion(question);
+
+        // Broadcast next question to students
+        wsService.send({
+          type: 'game:next',
+          roomId,
+          data: {
+            sessionId,
+            currentIndex: nextIndex,
+            numbers: question
+          }
+        });
       }
-    });
+    } catch (err) {
+      console.error('Failed to get next question:', err);
+    }
   };
 
   const endGame = async () => {

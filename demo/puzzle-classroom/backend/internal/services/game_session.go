@@ -90,6 +90,18 @@ func GetSessionQuestions(session *models.GameSession) ([][]int, error) {
 	return questions, nil
 }
 
+// GetSessionQuestionByIndex gets a specific question by index from a session
+func GetSessionQuestionByIndex(session *models.GameSession, index int) ([]int, error) {
+	questions, err := GetSessionQuestions(session)
+	if err != nil {
+		return nil, err
+	}
+	if index < 0 || index >= len(questions) {
+		return nil, errors.New("question index out of range")
+	}
+	return questions[index], nil
+}
+
 // UpdateProgress updates a student's progress in a session
 func UpdateProgress(sessionID, studentID string, correct bool, score int, totalQuestions int) (*models.StudentProgress, error) {
 	var progress models.StudentProgress

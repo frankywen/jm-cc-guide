@@ -5,12 +5,30 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
+var (
+	globalRand     *rand.Rand
+	globalRandMu   sync.Mutex
+	globalRandOnce sync.Once
+)
+
+// getGlobalRand returns a thread-safe global random source
+func getGlobalRand() *rand.Rand {
+	globalRandOnce.Do(func() {
+		globalRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+	})
+	return globalRand
+}
+
 // GenerateQuestion generates 4 random numbers (1-13) for the 24-point game
 func GenerateQuestion() []int {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	globalRandMu.Lock()
+	defer globalRandMu.Unlock()
+
+	r := getGlobalRand()
 	numbers := make([]int, 4)
 	for i := 0; i < 4; i++ {
 		numbers[i] = r.Intn(13) + 1

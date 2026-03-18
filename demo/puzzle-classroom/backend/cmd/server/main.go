@@ -65,6 +65,7 @@ func main() {
 		{
 			game.POST("/startGame", handlers.StartGame)
 			game.GET("/gameProgress", handlers.GetGameProgress)
+			game.POST("/getNextQuestion", handlers.GetNextQuestion)
 		}
 	}
 

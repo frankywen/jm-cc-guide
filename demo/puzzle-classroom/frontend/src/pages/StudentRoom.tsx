@@ -129,15 +129,6 @@ export default function StudentRoom() {
     } catch (err) { console.error('Submit failed:', err); }
   };
 
-  const requestNextQuestion = () => {
-    if (!sessionId || currentIndex >= totalQuestions - 1) return;
-    wsService.send({
-      type: 'game:next',
-      roomId,
-      data: { sessionId }
-    });
-  };
-
   const logout = () => { localStorage.clear(); navigate('/login'); };
 
   if (!room) return <div className="min-h-screen flex items-center justify-center text-gray-500">加载中...</div>;
@@ -198,12 +189,9 @@ export default function StudentRoom() {
                     <div className="text-blue-600">最终得分: {totalScore} 分</div>
                   </div>
                 ) : currentIndex < totalQuestions - 1 ? (
-                  <button
-                    onClick={requestNextQuestion}
-                    className="w-full bg-primary-600 text-white py-3 rounded-lg"
-                  >
-                    下一题
-                  </button>
+                  <div className="text-center text-gray-500 py-2">
+                    等待老师切换到下一题...
+                  </div>
                 ) : (
                   <div className="text-center text-gray-500">
                     等待老师结束游戏...
