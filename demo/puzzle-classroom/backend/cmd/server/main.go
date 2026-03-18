@@ -53,6 +53,7 @@ func main() {
 			auth.GET("/rooms", handlers.GetMyRooms)
 			auth.POST("/rooms", handlers.TeacherOnly(), handlers.CreateRoom)
 			auth.GET("/rooms/:id", handlers.GetRoom)
+			auth.GET("/rooms/:id/gameState", handlers.GetCurrentGameState)
 			auth.POST("/rooms/:id/join", handlers.JoinRoom)
 			auth.POST("/rooms/:id/answer", handlers.SubmitAnswer)
 			auth.PUT("/rooms/:id/status", handlers.UpdateRoomStatus)

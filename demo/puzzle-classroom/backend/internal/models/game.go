@@ -7,7 +7,8 @@ type GameSession struct {
 	ID             string    `json:"id" gorm:"primaryKey"`
 	RoomID         string    `json:"roomId" gorm:"not null;index"`
 	TotalQuestions int       `json:"totalQuestions" gorm:"not null"`
-	Questions      string    `json:"questions" gorm:"not null"` // JSON: "[[1,2,3,4],[5,6,7,8],...]"
+	CurrentIndex   int       `json:"currentIndex" gorm:"default:0"` // Current question index (teacher-controlled)
+	Questions      string    `json:"questions" gorm:"not null"`     // JSON: "[[1,2,3,4],[5,6,7,8],...]"
 	Status         string    `json:"status" gorm:"default:active"`
 	CreatedAt      time.Time `json:"createdAt"`
 }

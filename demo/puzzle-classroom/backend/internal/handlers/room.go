@@ -282,8 +282,8 @@ func GetNextQuestion(c *gin.Context) {
 	userID, _ := c.Get("userID")
 
 	var req struct {
-		RoomID   string `json:"roomId" binding:"required"`
-		Index    int    `json:"index" binding:"min=0"`
+		RoomID string `json:"roomId" binding:"required"`
+		Index  int    `json:"index" binding:"min=0"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, "参数错误")
@@ -315,9 +315,67 @@ func GetNextQuestion(c *gin.Context) {
 		return
 	}
 
+	// Update session's current index
+	if err := services.UpdateSessionCurrentIndex(session.ID, req.Index); err != nil {
+		utils.InternalError(c, "更新题目索引失败")
+		return
+	}
+
 	utils.Success(c, gin.H{
 		"question":     question,
 		"currentIndex": req.Index,
 		"sessionId":    session.ID,
+	})
+}
+
+// GetCurrentGameState gets the current game state for students joining mid-game
+func GetCurrentGameState(c *gin.Context) {
+	roomID := c.Param("id")
+
+	// Get room
+	room, err := services.GetRoomByID(roomID)
+	if err != nil {
+		utils.NotFound(c, "房间不存在")
+		return
+	}
+
+	// If room is not playing, return room status only
+	if room.Status != "playing" {
+		utils.Success(c, gin.H{
+			"status": room.Status,
+		})
+		return
+	}
+
+	// Get active session
+	session, err := services.GetActiveSession(roomID)
+	if err != nil {
+		utils.Success(c, gin.H{
+			"status": "waiting",
+		})
+		return
+	}
+
+	// Get the current question based on session's current index
+	questions, err := services.GetSessionQuestions(session)
+	if err != nil || len(questions) == 0 {
+		utils.Success(c, gin.H{
+			"status": "waiting",
+		})
+		return
+	}
+
+	// Use session's current index, default to 0 if out of bounds
+	currentIndex := session.CurrentIndex
+	if currentIndex < 0 || currentIndex >= len(questions) {
+		currentIndex = 0
+	}
+
+	utils.Success(c, gin.H{
+		"status":         "playing",
+		"sessionId":      session.ID,
+		"totalQuestions": session.TotalQuestions,
+		"currentIndex":   currentIndex,
+		"question":       questions[currentIndex],
 	})
 }

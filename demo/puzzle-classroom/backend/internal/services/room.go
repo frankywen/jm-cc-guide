@@ -46,7 +46,8 @@ func GetRoomsByTeacher(teacherID string) ([]models.Room, error) {
 
 func GetAvailableRooms() ([]models.Room, error) {
 	var rooms []models.Room
-	err := database.GetDB().Where("status = ?", "waiting").Find(&rooms).Error
+	// Show rooms that are waiting or playing (students can join both)
+	err := database.GetDB().Where("status IN ?", []string{"waiting", "playing"}).Find(&rooms).Error
 	return rooms, err
 }
 
@@ -59,8 +60,9 @@ func JoinRoom(roomID, studentID string) error {
 		}
 		return err
 	}
-	if room.Status != "waiting" {
-		return errors.New("房间状态不允许加入")
+	// Allow joining in both waiting and playing status (for late joiners)
+	if room.Status == "finished" {
+		return errors.New("房间已结束")
 	}
 	var existing models.RoomStudent
 	if err := db.Where("room_id = ? AND student_id = ?", roomID, studentID).First(&existing).Error; err == nil {

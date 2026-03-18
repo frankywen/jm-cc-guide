@@ -205,6 +205,11 @@ func EndSession(sessionID string) error {
 	return database.GetDB().Model(&models.GameSession{}).Where("id = ?", sessionID).Update("status", "ended").Error
 }
 
+// UpdateSessionCurrentIndex updates the current question index for a session
+func UpdateSessionCurrentIndex(sessionID string, index int) error {
+	return database.GetDB().Model(&models.GameSession{}).Where("id = ?", sessionID).Update("current_index", index).Error
+}
+
 // ValidateSessionAccess checks if a student can access a question at the given index
 func ValidateSessionAccess(sessionID, studentID string, questionIndex int) error {
 	session, err := GetSessionByID(sessionID)

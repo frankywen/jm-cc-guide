@@ -56,9 +56,26 @@ export default function StudentRoom() {
       const res: any = await api.get('/rooms/' + roomId);
       if (res.code === 0) {
         setRoom(res.data.room);
-        if (res.data.room.status === 'playing') setGameState('playing');
+        if (res.data.room.status === 'playing') {
+          setGameState('playing');
+          // Fetch current game state when joining mid-game
+          fetchCurrentGameState();
+        }
       }
     } catch (err) { console.error('Load room failed:', err); }
+  };
+
+  const fetchCurrentGameState = async () => {
+    try {
+      const res: any = await api.get('/rooms/' + roomId + '/gameState');
+      if (res.code === 0 && res.data.status === 'playing') {
+        setSessionId(res.data.sessionId);
+        setTotalQuestions(res.data.totalQuestions);
+        setCurrentIndex(res.data.currentIndex);
+        setQuestion(res.data.question);
+        setGameState('playing');
+      }
+    } catch (err) { console.error('Failed to fetch game state:', err); }
   };
 
   const connectWebSocket = async () => {
