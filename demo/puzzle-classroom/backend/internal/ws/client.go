@@ -111,6 +111,7 @@ func (c *Client) WritePump() {
 
 // handleMessage handles incoming messages from the client
 func (c *Client) handleMessage(msg *Message) {
+	log.Printf("[WS] handleMessage: type=%s, roomID=%s, userID=%s", msg.Type, msg.RoomID, c.UserID)
 	switch msg.Type {
 	case "join_room":
 		c.handleJoinRoom(msg)
@@ -129,7 +130,9 @@ func (c *Client) handleMessage(msg *Message) {
 
 // handleJoinRoom handles a join_room message
 func (c *Client) handleJoinRoom(msg *Message) {
+	log.Printf("[WS] handleJoinRoom called: userID=%s, roomID=%s", c.UserID, msg.RoomID)
 	if msg.RoomID == "" {
+		log.Printf("[WS] handleJoinRoom error: room_id is empty")
 		c.SendError("room_id is required")
 		return
 	}
@@ -138,6 +141,7 @@ func (c *Client) handleJoinRoom(msg *Message) {
 	c.Hub.Register <- c
 
 	// Notify others in the room
+	log.Printf("[WS] Broadcasting user_joined to room %s, userID=%s", msg.RoomID, c.UserID)
 	c.Hub.Broadcast(msg.RoomID, Message{
 		Type: "user_joined",
 		Data: map[string]string{

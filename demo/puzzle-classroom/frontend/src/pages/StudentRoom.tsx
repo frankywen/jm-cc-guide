@@ -82,6 +82,7 @@ export default function StudentRoom() {
     if (!token) return;
     // Register handlers and callbacks BEFORE connecting (for reconnection)
     wsService.on('game:start', (msg) => {
+      console.log('[StudentRoom] Received game:start:', msg);
       const data = msg.data as GameStartData;
       setGameState('playing');
       setSessionId(data.sessionId);
@@ -97,6 +98,7 @@ export default function StudentRoom() {
     });
 
     wsService.on('game:next', (msg) => {
+      console.log('[StudentRoom] Received game:next:', msg);
       const data = msg.data as GameNextData;
       setCurrentIndex(data.currentIndex);
       setQuestion(data.numbers);
@@ -106,16 +108,19 @@ export default function StudentRoom() {
     });
 
     wsService.on('game:end', () => {
+      console.log('[StudentRoom] Received game:end');
       setGameState('finished');
       setSessionId(null);
     });
 
     wsService.onConnect(() => {
+      console.log('[StudentRoom] WebSocket connected, joining room:', roomId);
       wsService.send({ type: 'join_room', roomId });
     });
 
     try {
       await wsService.connect(token);
+      console.log('[StudentRoom] wsService.connect resolved');
       // Join the room via WebSocket to receive broadcasts
       wsService.send({ type: 'join_room', roomId });
     } catch (err) { console.error('WS failed:', err); }

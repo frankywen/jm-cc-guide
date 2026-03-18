@@ -47,13 +47,18 @@ export default function TeacherRoom() {
   const connectWebSocket = async () => {
     if (!token) return;
     // Register handlers and callbacks BEFORE connecting (for reconnection)
-    wsService.on('user_joined', () => loadRoom());
+    wsService.on('user_joined', (msg) => {
+      console.log('[TeacherRoom] Received user_joined:', msg);
+      loadRoom();
+    });
     wsService.on('progress:update', handleProgressUpdate);
     wsService.onConnect(() => {
+      console.log('[TeacherRoom] WebSocket connected, joining room:', roomId);
       wsService.send({ type: 'join_room', roomId });
     });
     try {
       await wsService.connect(token);
+      console.log('[TeacherRoom] wsService.connect resolved');
       // Join the room via WebSocket to receive broadcasts
       wsService.send({ type: 'join_room', roomId });
     } catch (err) { console.error(err); }

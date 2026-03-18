@@ -76,9 +76,11 @@ func (h *Hub) Run() {
 					h.Rooms[client.RoomID] = make(map[string]*Client)
 				}
 				h.Rooms[client.RoomID][client.ID] = client
+				log.Printf("[Hub] Client registered to room: userID=%s, roomID=%s, roomSize=%d", client.UserID, client.RoomID, len(h.Rooms[client.RoomID]))
+			} else {
+				log.Printf("[Hub] Client registered without room: userID=%s", client.UserID)
 			}
 			h.mu.Unlock()
-			log.Printf("Client registered: %s", client.UserID)
 
 		case client := <-h.Unregister:
 			h.mu.Lock()
@@ -98,12 +100,18 @@ func (h *Hub) Run() {
 		case msg := <-h.broadcastChan:
 			h.mu.RLock()
 			room := h.Rooms[msg.RoomID]
+			roomSize := 0
+			if room != nil {
+				roomSize = len(room)
+			}
 			h.mu.RUnlock()
+			log.Printf("[Hub] Broadcasting to room %s, roomSize=%d, exclude=%s", msg.RoomID, roomSize, msg.Exclude)
 			if room != nil {
 				for _, client := range room {
 					if msg.Exclude == "" || client.ID != msg.Exclude {
 						select {
 						case client.Send <- msg.Message:
+							log.Printf("[Hub] Sent message to client: userID=%s", client.UserID)
 						default:
 							close(client.Send)
 							h.mu.Lock()
