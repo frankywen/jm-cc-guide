@@ -85,3 +85,29 @@ func GetUserByID(userID string) (*models.User, error) {
 	}
 	return &user, nil
 }
+
+// SeedAdminUser creates a default admin user if none exists
+func SeedAdminUser() error {
+	db := database.GetDB()
+
+	// Check if admin already exists
+	var existing models.User
+	if err := db.Where("username = ?", "admin").First(&existing).Error; err == nil {
+		return nil // Admin already exists
+	}
+
+	// Create admin user
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	admin := models.User{
+		ID:       uuid.New().String(),
+		Username: "admin",
+		Password: string(hashedPassword),
+		Role:     "admin",
+	}
+
+	return db.Create(&admin).Error
+}

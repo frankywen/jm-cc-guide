@@ -132,6 +132,36 @@ func (h *Hub) Broadcast(roomID string, message interface{}, exclude string) {
 	h.broadcastChan <- &BroadcastMessage{RoomID: roomID, Message: data, Exclude: exclude}
 }
 
+// BroadcastToAll sends a message to all connected clients
+func (h *Hub) BroadcastToAll(message interface{}) {
+	data, _ := json.Marshal(message)
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for _, client := range h.Clients {
+		select {
+		case client.Send <- data:
+		default:
+			// Channel full, skip
+		}
+	}
+}
+
+// BroadcastToRole sends a message to all clients with a specific role
+func (h *Hub) BroadcastToRole(role string, message interface{}) {
+	data, _ := json.Marshal(message)
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for _, client := range h.Clients {
+		if client.Role == role {
+			select {
+			case client.Send <- data:
+			default:
+				// Channel full, skip
+			}
+		}
+	}
+}
+
 // GetRoomClients returns all clients in a specific room
 func (h *Hub) GetRoomClients(roomID string) []*Client {
 	h.mu.RLock()

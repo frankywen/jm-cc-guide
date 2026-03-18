@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/jm-cc-guide/puzzle-classroom/backend/internal/database"
 	"github.com/jm-cc-guide/puzzle-classroom/backend/internal/handlers"
+	"github.com/jm-cc-guide/puzzle-classroom/backend/internal/services"
 	"github.com/jm-cc-guide/puzzle-classroom/backend/internal/ws"
 	"github.com/jm-cc-guide/puzzle-classroom/backend/pkg/utils"
 )
@@ -31,6 +32,11 @@ func main() {
 		log.Fatal("Failed to initialize database:", err)
 	}
 	defer database.Close()
+
+	// Seed admin user
+	if err := services.SeedAdminUser(); err != nil {
+		log.Printf("Warning: Failed to seed admin user: %v", err)
+	}
 
 	// Create WebSocket Hub
 	hub := ws.NewHub()
@@ -67,6 +73,15 @@ func main() {
 			game.POST("/startGame", handlers.StartGame)
 			game.GET("/gameProgress", handlers.GetGameProgress)
 			game.POST("/getNextQuestion", handlers.GetNextQuestion)
+		}
+
+		// Admin routes
+		admin := api.Group("/admin")
+		admin.Use(handlers.AuthMiddleware(), handlers.AdminOnly())
+		{
+			admin.GET("/rooms", handlers.AdminGetAllRooms)
+			admin.DELETE("/rooms/:id", handlers.AdminDeleteRoom)
+			admin.PUT("/rooms/:id", handlers.AdminUpdateRoom)
 		}
 	}
 

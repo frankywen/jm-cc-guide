@@ -24,6 +24,16 @@ func CreateRoom(c *gin.Context) {
 		utils.InternalError(c, "创建房间失败")
 		return
 	}
+
+	// Broadcast room:created to all students
+	hub := ws.GetGlobalHub()
+	if hub != nil {
+		hub.BroadcastToRole("student", ws.Message{
+			Type: "room:created",
+			Data: room,
+		})
+	}
+
 	utils.Success(c, room)
 }
 
@@ -88,6 +98,19 @@ func UpdateRoomStatus(c *gin.Context) {
 		utils.InternalError(c, "更新状态失败")
 		return
 	}
+
+	// Broadcast room:updated to all students
+	hub := ws.GetGlobalHub()
+	if hub != nil {
+		hub.BroadcastToRole("student", ws.Message{
+			Type: "room:updated",
+			Data: map[string]interface{}{
+				"roomId": roomID,
+				"status": req.Status,
+			},
+		})
+	}
+
 	utils.Success(c, gin.H{"message": "状态更新成功"})
 }
 
@@ -107,6 +130,16 @@ func DeleteRoom(c *gin.Context) {
 		utils.InternalError(c, "删除房间失败")
 		return
 	}
+
+	// Broadcast room:deleted to all students
+	hub := ws.GetGlobalHub()
+	if hub != nil {
+		hub.BroadcastToRole("student", ws.Message{
+			Type: "room:deleted",
+			Data: map[string]string{"roomId": roomID},
+		})
+	}
+
 	utils.Success(c, gin.H{"message": "删除成功"})
 }
 
@@ -378,4 +411,79 @@ func GetCurrentGameState(c *gin.Context) {
 		"currentIndex":   currentIndex,
 		"question":       questions[currentIndex],
 	})
+}
+
+// AdminGetAllRooms gets all rooms for admin
+func AdminGetAllRooms(c *gin.Context) {
+	rooms, err := services.GetRoomsWithTeacherInfo()
+	if err != nil {
+		utils.InternalError(c, "获取房间列表失败")
+		return
+	}
+	utils.Success(c, rooms)
+}
+
+// AdminDeleteRoom allows admin to delete any room
+func AdminDeleteRoom(c *gin.Context) {
+	roomID := c.Param("id")
+	_, err := services.GetRoomByID(roomID)
+	if err != nil {
+		utils.NotFound(c, "房间不存在")
+		return
+	}
+	if err := services.AdminDeleteRoom(roomID); err != nil {
+		utils.InternalError(c, "删除房间失败")
+		return
+	}
+
+	// Broadcast room:deleted to all students
+	hub := ws.GetGlobalHub()
+	if hub != nil {
+		hub.BroadcastToRole("student", ws.Message{
+			Type: "room:deleted",
+			Data: map[string]string{"roomId": roomID},
+		})
+	}
+
+	utils.Success(c, gin.H{"message": "删除成功"})
+}
+
+// AdminUpdateRoom allows admin to update room name and status
+func AdminUpdateRoom(c *gin.Context) {
+	roomID := c.Param("id")
+	var req struct {
+		Name   string `json:"name"`
+		Status string `json:"status" binding:"omitempty,oneof=waiting playing finished"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, "参数错误")
+		return
+	}
+
+	_, err := services.GetRoomByID(roomID)
+	if err != nil {
+		utils.NotFound(c, "房间不存在")
+		return
+	}
+
+	if err := services.AdminUpdateRoom(roomID, req.Name, req.Status); err != nil {
+		utils.InternalError(c, "更新房间失败")
+		return
+	}
+
+	// Broadcast room:updated to all students if status changed
+	if req.Status != "" {
+		hub := ws.GetGlobalHub()
+		if hub != nil {
+			hub.BroadcastToRole("student", ws.Message{
+				Type: "room:updated",
+				Data: map[string]interface{}{
+					"roomId": roomID,
+					"status": req.Status,
+				},
+			})
+		}
+	}
+
+	utils.Success(c, gin.H{"message": "更新成功"})
 }

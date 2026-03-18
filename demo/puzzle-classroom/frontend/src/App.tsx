@@ -5,6 +5,7 @@ import TeacherDashboard from './pages/TeacherDashboard';
 import StudentRoom from './pages/StudentRoom';
 import TeacherRoom from './pages/TeacherRoom';
 import RoomList from './pages/RoomList';
+import AdminDashboard from './pages/AdminDashboard';
 
 function PrivateRoute({ children, role }: { children: JSX.Element; role?: string }) {
   const user = useAuthStore((s) => s.user);
@@ -16,11 +17,27 @@ function PrivateRoute({ children, role }: { children: JSX.Element; role?: string
   }
 
   if (!user) return <Navigate to="/login" />;
-  if (role && user.role !== role) return <Navigate to={user.role === 'teacher' ? '/teacher' : '/rooms'} />;
+  if (role && user.role !== role) {
+    // Redirect based on user role
+    if (user.role === 'admin') return <Navigate to="/admin" />;
+    if (user.role === 'teacher') return <Navigate to="/teacher" />;
+    return <Navigate to="/rooms" />;
+  }
   return children;
 }
 
 function App() {
+  const user = useAuthStore((s) => s.user);
+  const hasHydrated = useHasHydrated();
+
+  // Determine home route based on role
+  const getHomeRoute = () => {
+    if (!hasHydrated || !user) return '/login';
+    if (user.role === 'admin') return '/admin';
+    if (user.role === 'teacher') return '/teacher';
+    return '/rooms';
+  };
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
@@ -56,7 +73,15 @@ function App() {
           </PrivateRoute>
         }
       />
-      <Route path="/" element={<Navigate to="/login" />} />
+      <Route
+        path="/admin"
+        element={
+          <PrivateRoute role="admin">
+            <AdminDashboard />
+          </PrivateRoute>
+        }
+      />
+      <Route path="/" element={<Navigate to={getHomeRoute()} />} />
     </Routes>
   );
 }

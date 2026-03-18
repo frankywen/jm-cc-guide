@@ -8,6 +8,9 @@ export type MessageType =
   | 'game:end'
   | 'progress:update'
   | 'room:update'
+  | 'room:created'
+  | 'room:deleted'
+  | 'room:updated'
   | 'user_joined'
   | 'error';
 

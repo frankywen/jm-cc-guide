@@ -95,3 +95,40 @@ func DeleteRoom(roomID string) error {
 	db.Where("room_id = ?", roomID).Delete(&models.RoomStudent{})
 	return db.Delete(&models.Room{}, "id = ?", roomID).Error
 }
+
+// GetAllRooms returns all rooms (admin only)
+func GetAllRooms() ([]models.Room, error) {
+	var rooms []models.Room
+	err := database.GetDB().Find(&rooms).Error
+	return rooms, err
+}
+
+// AdminDeleteRoom allows admin to delete any room
+func AdminDeleteRoom(roomID string) error {
+	return DeleteRoom(roomID)
+}
+
+// AdminUpdateRoom allows admin to update room name and status
+func AdminUpdateRoom(roomID, name, status string) error {
+	updates := map[string]interface{}{}
+	if name != "" {
+		updates["name"] = name
+	}
+	if status != "" {
+		updates["status"] = status
+	}
+	if len(updates) == 0 {
+		return nil
+	}
+	return database.GetDB().Model(&models.Room{}).Where("id = ?", roomID).Updates(updates).Error
+}
+
+// GetRoomsWithTeacherInfo returns all rooms with teacher information (admin only)
+func GetRoomsWithTeacherInfo() ([]map[string]interface{}, error) {
+	var results []map[string]interface{}
+	err := database.GetDB().Table("rooms").
+		Select("rooms.*, users.username as teacher_name").
+		Joins("LEFT JOIN users ON rooms.teacher_id = users.id").
+		Find(&results).Error
+	return results, err
+}

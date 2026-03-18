@@ -1,7 +1,7 @@
 export interface User {
   id: string;
   username: string;
-  role: 'student' | 'teacher';
+  role: 'student' | 'teacher' | 'admin';
 }
 
 export interface Room {
@@ -11,6 +11,10 @@ export interface Room {
   gameType: string;
   status: 'waiting' | 'playing' | 'finished';
   createdAt: string;
+}
+
+export interface AdminRoom extends Room {
+  teacherName: string;
 }
 
 export interface GameSession {

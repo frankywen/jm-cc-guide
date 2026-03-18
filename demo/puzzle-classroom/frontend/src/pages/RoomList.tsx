@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { wsService } from '../services/websocket';
 import { Room } from '../types';
 import { useAuthStore } from '../stores/authStore';
 
@@ -9,8 +10,68 @@ export default function RoomList() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
 
   useEffect(() => { loadRooms(); }, []);
+
+  // Connect to WebSocket for real-time updates
+  useEffect(() => {
+    if (!token) return;
+
+    const connectWS = async () => {
+      try {
+        await wsService.connect(token);
+      } catch (err) {
+        console.error('[RoomList] Failed to connect WebSocket:', err);
+      }
+    };
+
+    connectWS();
+
+    return () => {
+      wsService.disconnect();
+    };
+  }, [token]);
+
+  // Listen for room updates
+  const handleRoomCreated = useCallback((message: any) => {
+    console.log('[RoomList] Room created:', message.data);
+    const newRoom = message.data as Room;
+    setRooms(prev => {
+      // Avoid duplicates
+      if (prev.some(r => r.id === newRoom.id)) return prev;
+      return [...prev, newRoom];
+    });
+  }, []);
+
+  const handleRoomDeleted = useCallback((message: any) => {
+    console.log('[RoomList] Room deleted:', message.data);
+    const roomId = message.data.roomId;
+    setRooms(prev => prev.filter(r => r.id !== roomId));
+  }, []);
+
+  const handleRoomUpdated = useCallback((message: any) => {
+    console.log('[RoomList] Room updated:', message.data);
+    const { roomId, status } = message.data;
+    setRooms(prev => prev.map(r => {
+      if (r.id === roomId) {
+        return { ...r, status };
+      }
+      return r;
+    }));
+  }, []);
+
+  useEffect(() => {
+    wsService.on('room:created', handleRoomCreated);
+    wsService.on('room:deleted', handleRoomDeleted);
+    wsService.on('room:updated', handleRoomUpdated);
+
+    return () => {
+      wsService.off('room:created', handleRoomCreated);
+      wsService.off('room:deleted', handleRoomDeleted);
+      wsService.off('room:updated', handleRoomUpdated);
+    };
+  }, [handleRoomCreated, handleRoomDeleted, handleRoomUpdated]);
 
   const loadRooms = async () => {
     try { const res: any = await api.get('/rooms'); if (res.code === 0) setRooms(res.data || []); }
@@ -42,7 +103,7 @@ export default function RoomList() {
          <div className="space-y-4">
            {rooms.map((room) => (
              <div key={room.id} className="bg-white rounded-lg shadow p-4 flex items-center justify-between">
-               <div><h3 className="font-medium">{room.name}</h3><p className="text-sm text-gray-500">游戏类型: 24点</p></div>
+               <div><h3 className="font-medium">{room.name}</h3><p className="text-sm text-gray-500">游戏类型: 24点 | 状态: {room.status}</p></div>
                <button onClick={() => joinRoom(room.id)} className="bg-primary-600 text-white px-6 py-2 rounded-lg">加入</button>
              </div>
            ))}

@@ -62,6 +62,46 @@ func TeacherOnly() gin.HandlerFunc {
 	}
 }
 
+// AdminOnly ensures only admins can access the endpoint
+func AdminOnly() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role, exists := c.Get("role")
+		if !exists {
+			utils.Unauthorized(c, "未登录")
+			c.Abort()
+			return
+		}
+
+		if role != "admin" {
+			utils.Error(c, 403, "仅管理员可访问")
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// AdminOrTeacher ensures only admins or teachers can access the endpoint
+func AdminOrTeacher() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role, exists := c.Get("role")
+		if !exists {
+			utils.Unauthorized(c, "未登录")
+			c.Abort()
+			return
+		}
+
+		if role != "admin" && role != "teacher" {
+			utils.Error(c, 403, "仅管理员或老师可访问")
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
 // CORSMiddleware allows all origins for development
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
