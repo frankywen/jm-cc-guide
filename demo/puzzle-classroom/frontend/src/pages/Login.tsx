@@ -22,7 +22,14 @@ export default function Login() {
       if (res.code === 0) {
         if (isLogin) {
           setAuth(res.data.user, res.data.token);
-          navigate(res.data.user.role === 'teacher' ? '/teacher' : '/rooms');
+          // Navigate based on role
+          if (res.data.user.role === 'admin') {
+            navigate('/admin');
+          } else if (res.data.user.role === 'teacher') {
+            navigate('/teacher');
+          } else {
+            navigate('/rooms');
+          }
         } else {
           setIsLogin(true);
           setError('注册成功，请登录');
