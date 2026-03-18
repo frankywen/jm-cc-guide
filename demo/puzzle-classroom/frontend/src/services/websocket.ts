@@ -3,8 +3,10 @@ export type MessageType =
   | 'leave_room'
   | 'submit_answer'
   | 'game:start'
+  | 'game:next'
   | 'game:result'
   | 'game:end'
+  | 'progress:update'
   | 'room:update'
   | 'user_joined'
   | 'error';

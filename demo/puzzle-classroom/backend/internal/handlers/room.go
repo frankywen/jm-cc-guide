@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/jm-cc-guide/puzzle-classroom/backend/internal/models"
 	"github.com/jm-cc-guide/puzzle-classroom/backend/internal/services"
 	"github.com/jm-cc-guide/puzzle-classroom/backend/pkg/utils"
 )
@@ -113,9 +114,11 @@ func SubmitAnswer(c *gin.Context) {
 	roomID := c.Param("id")
 
 	var req struct {
-		Answer   string `json:"answer" binding:"required"`
-		Question string `json:"question" binding:"required"`
-		TimeSpent int   `json:"timeSpent"`
+		Answer        string `json:"answer" binding:"required"`
+		Question      string `json:"question" binding:"required"`
+		TimeSpent     int    `json:"timeSpent"`
+		SessionID     string `json:"sessionId"`
+		QuestionIndex int    `json:"questionIndex"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, "参数错误")
@@ -146,14 +149,116 @@ func SubmitAnswer(c *gin.Context) {
 	correct := services.ValidateGame24Answer(numbers, req.Answer)
 
 	// Save game record
-	record, err := services.SaveGameRecord(roomID, userID.(string), "game24", req.Question, req.Answer, correct, req.TimeSpent)
+	var record *models.GameRecord
+	var err error
+	if req.SessionID != "" {
+		record, err = services.SaveGameRecordWithSession(roomID, req.SessionID, req.QuestionIndex, userID.(string), "game24", req.Question, req.Answer, correct, req.TimeSpent)
+	} else {
+		record, err = services.SaveGameRecord(roomID, userID.(string), "game24", req.Question, req.Answer, correct, req.TimeSpent)
+	}
 	if err != nil {
 		utils.InternalError(c, "保存记录失败")
 		return
 	}
 
-	utils.Success(c, gin.H{
+	response := gin.H{
 		"correct": correct,
 		"score":   record.Score,
+	}
+
+	// If this is part of a session, update progress
+	if req.SessionID != "" {
+		session, err := services.GetSessionByID(req.SessionID)
+		if err == nil {
+			progress, err := services.UpdateProgress(req.SessionID, userID.(string), correct, record.Score, session.TotalQuestions)
+			if err == nil {
+				response["completed"] = progress.CompletedCount >= session.TotalQuestions
+				response["totalCompleted"] = progress.CompletedCount
+				response["totalQuestions"] = session.TotalQuestions
+				response["totalScore"] = progress.TotalScore
+			}
+		}
+	}
+
+	utils.Success(c, response)
+}
+
+// StartGame starts a new multi-question game session
+func StartGame(c *gin.Context) {
+	userID, _ := c.Get("userID")
+
+	var req struct {
+		RoomID        string `json:"roomId" binding:"required"`
+		QuestionCount int    `json:"questionCount" binding:"required,min=1,max=50"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, "参数错误")
+		return
+	}
+
+	// Verify user is the teacher
+	room, err := services.GetRoomByID(req.RoomID)
+	if err != nil {
+		utils.NotFound(c, "房间不存在")
+		return
+	}
+	if room.TeacherID != userID.(string) {
+		utils.Error(c, 403, "无权操作")
+		return
+	}
+
+	// Create game session
+	session, err := services.CreateGameSession(req.RoomID, req.QuestionCount)
+	if err != nil {
+		utils.InternalError(c, "创建游戏失败")
+		return
+	}
+
+	// Get first question
+	questions, err := services.GetSessionQuestions(session)
+	if err != nil {
+		utils.InternalError(c, "获取题目失败")
+		return
+	}
+
+	// Update room status
+	if err := services.UpdateRoomStatus(req.RoomID, "playing"); err != nil {
+		utils.InternalError(c, "更新状态失败")
+		return
+	}
+
+	utils.Success(c, gin.H{
+		"sessionId":      session.ID,
+		"totalQuestions": session.TotalQuestions,
+		"firstQuestion":  questions[0],
+		"currentIndex":   0,
+	})
+}
+
+// GetGameProgress gets the progress of all students in a game session
+func GetGameProgress(c *gin.Context) {
+	roomID := c.Query("roomId")
+	if roomID == "" {
+		utils.BadRequest(c, "缺少roomId参数")
+		return
+	}
+
+	// Get active session
+	session, err := services.GetActiveSession(roomID)
+	if err != nil {
+		utils.NotFound(c, "没有进行中的游戏")
+		return
+	}
+
+	// Get progress
+	progress, err := services.GetSessionProgress(session.ID)
+	if err != nil {
+		utils.InternalError(c, "获取进度失败")
+		return
+	}
+
+	utils.Success(c, gin.H{
+		"session":  session,
+		"progress": progress,
 	})
 }

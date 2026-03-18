@@ -28,22 +28,29 @@ func ValidateGame24Answer(numbers []int, answer string) bool {
 
 // SaveGameRecord saves a game record to the database
 func SaveGameRecord(roomID, studentID, gameType, question, answer string, correct bool, timeSpent int) (*models.GameRecord, error) {
+	return SaveGameRecordWithSession(roomID, "", -1, studentID, gameType, question, answer, correct, timeSpent)
+}
+
+// SaveGameRecordWithSession saves a game record with session info to the database
+func SaveGameRecordWithSession(roomID, sessionID string, questionIndex int, studentID, gameType, question, answer string, correct bool, timeSpent int) (*models.GameRecord, error) {
 	score := 0
 	if correct {
 		score = games.CalculateScore(timeSpent)
 	}
 
 	record := models.GameRecord{
-		ID:        uuid.New().String(),
-		RoomID:    roomID,
-		StudentID: studentID,
-		GameType:  gameType,
-		Question:  question,
-		Answer:    answer,
-		Correct:   correct,
-		TimeSpent: timeSpent,
-		Score:     score,
-		CreatedAt: time.Now(),
+		ID:            uuid.New().String(),
+		RoomID:        roomID,
+		SessionID:     sessionID,
+		QuestionIndex: questionIndex,
+		StudentID:     studentID,
+		GameType:      gameType,
+		Question:      question,
+		Answer:        answer,
+		Correct:       correct,
+		TimeSpent:     timeSpent,
+		Score:         score,
+		CreatedAt:     time.Now(),
 	}
 
 	if err := database.GetDB().Create(&record).Error; err != nil {
@@ -64,5 +71,12 @@ func GetGameRecords(roomID string) ([]models.GameRecord, error) {
 func GetStudentRecords(roomID, studentID string) ([]models.GameRecord, error) {
 	var records []models.GameRecord
 	err := database.GetDB().Where("room_id = ? AND student_id = ?", roomID, studentID).Order("created_at desc").Find(&records).Error
+	return records, err
+}
+
+// GetSessionRecords retrieves all game records for a session
+func GetSessionRecords(sessionID string) ([]models.GameRecord, error) {
+	var records []models.GameRecord
+	err := database.GetDB().Where("session_id = ?", sessionID).Order("question_index asc").Find(&records).Error
 	return records, err
 }

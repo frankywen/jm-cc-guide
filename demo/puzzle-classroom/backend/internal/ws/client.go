@@ -116,6 +116,8 @@ func (c *Client) handleMessage(msg *Message) {
 		c.handleJoinRoom(msg)
 	case "game:start":
 		c.handleGameStart(msg)
+	case "game:next":
+		c.handleGameNext(msg)
 	case "game:result":
 		c.handleGameResult(msg)
 	case "game:end":
@@ -155,6 +157,20 @@ func (c *Client) handleGameStart(msg *Message) {
 	// Broadcast game start to all clients in the room
 	c.Hub.Broadcast(c.RoomID, Message{
 		Type: "game:start",
+		Data: msg.Data,
+	}, "")
+}
+
+// handleGameNext handles a game:next message (student requests next question)
+func (c *Client) handleGameNext(msg *Message) {
+	if c.RoomID == "" {
+		c.SendError("not in a room")
+		return
+	}
+
+	// Broadcast game:next to all clients in the room
+	c.Hub.Broadcast(c.RoomID, Message{
+		Type: "game:next",
 		Data: msg.Data,
 	}, "")
 }

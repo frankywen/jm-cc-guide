@@ -29,6 +29,8 @@ func InitDB() error {
 		&models.User{},
 		&models.Room{},
 		&models.RoomStudent{},
+		&models.GameSession{},
+		&models.StudentProgress{},
 		&models.GameRecord{},
 	); err != nil {
 		return err

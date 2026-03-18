@@ -58,6 +58,14 @@ func main() {
 			auth.PUT("/rooms/:id/status", handlers.UpdateRoomStatus)
 			auth.DELETE("/rooms/:id", handlers.DeleteRoom)
 		}
+
+		// Game session routes (outside auth group to debug)
+		game := api.Group("")
+		game.Use(handlers.AuthMiddleware())
+		{
+			game.POST("/startGame", handlers.StartGame)
+			game.GET("/gameProgress", handlers.GetGameProgress)
+		}
 	}
 
 	// WebSocket route

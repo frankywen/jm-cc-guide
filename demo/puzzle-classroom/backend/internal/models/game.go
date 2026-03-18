@@ -2,17 +2,49 @@ package models
 
 import "time"
 
+// GameSession represents a multi-question game session
+type GameSession struct {
+	ID             string    `json:"id" gorm:"primaryKey"`
+	RoomID         string    `json:"roomId" gorm:"not null;index"`
+	TotalQuestions int       `json:"totalQuestions" gorm:"not null"`
+	Questions      string    `json:"questions" gorm:"not null"` // JSON: "[[1,2,3,4],[5,6,7,8],...]"
+	Status         string    `json:"status" gorm:"default:active"`
+	CreatedAt      time.Time `json:"createdAt"`
+}
+
+func (GameSession) TableName() string {
+	return "game_sessions"
+}
+
+// StudentProgress tracks a student's progress in a game session
+type StudentProgress struct {
+	ID             string    `json:"id" gorm:"primaryKey"`
+	SessionID      string    `json:"sessionId" gorm:"not null;index"`
+	StudentID      string    `json:"studentId" gorm:"not null;index"`
+	CurrentIndex   int       `json:"currentIndex" gorm:"default:0"`
+	CompletedCount int       `json:"completedCount" gorm:"default:0"`
+	TotalScore     int       `json:"totalScore" gorm:"default:0"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+}
+
+func (StudentProgress) TableName() string {
+	return "student_progress"
+}
+
+// GameRecord represents a single answer submission
 type GameRecord struct {
-	ID        string    `json:"id" gorm:"primaryKey"`
-	RoomID    string    `json:"roomId" gorm:"not null;index"`
-	StudentID string    `json:"studentId" gorm:"not null;index"`
-	GameType  string    `json:"gameType" gorm:"not null"`
-	Question  string    `json:"question" gorm:"not null"`
-	Answer    string    `json:"answer"`
-	Correct   bool      `json:"correct"`
-	TimeSpent int       `json:"timeSpent"` // seconds
-	Score     int       `json:"score"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID            string    `json:"id" gorm:"primaryKey"`
+	RoomID        string    `json:"roomId" gorm:"not null;index"`
+	SessionID     string    `json:"sessionId" gorm:"index"`
+	StudentID     string    `json:"studentId" gorm:"not null;index"`
+	QuestionIndex int       `json:"questionIndex"`
+	GameType      string    `json:"gameType" gorm:"not null"`
+	Question      string    `json:"question" gorm:"not null"`
+	Answer        string    `json:"answer"`
+	Correct       bool      `json:"correct"`
+	TimeSpent     int       `json:"timeSpent"` // seconds
+	Score         int       `json:"score"`
+	CreatedAt     time.Time `json:"createdAt"`
 }
 
 func (GameRecord) TableName() string {

@@ -13,9 +13,28 @@ export interface Room {
   createdAt: string;
 }
 
+export interface GameSession {
+  id: string;
+  roomId: string;
+  totalQuestions: number;
+  questions: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface StudentProgress {
+  studentId: string;
+  username: string;
+  currentIndex: number;
+  completedCount: number;
+  totalScore: number;
+}
+
 export interface GameRecord {
   id: string;
   roomId: string;
+  sessionId?: string;
+  questionIndex?: number;
   studentId: string;
   gameType: string;
   question: string;
