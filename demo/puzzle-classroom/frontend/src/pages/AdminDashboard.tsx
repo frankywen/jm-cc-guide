@@ -10,6 +10,8 @@ export default function AdminDashboard() {
   const [editingRoom, setEditingRoom] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editStatus, setEditStatus] = useState('');
+  const [selectedRooms, setSelectedRooms] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
 
@@ -31,6 +33,11 @@ export default function AdminDashboard() {
     try {
       await api.delete('/admin/rooms/' + roomId);
       setRooms(prev => prev.filter(r => r.id !== roomId));
+      setSelectedRooms(prev => {
+        const next = new Set(prev);
+        next.delete(roomId);
+        return next;
+      });
     } catch (err: any) {
       alert(err.response?.data?.message || '删除失败');
     }
@@ -66,6 +73,44 @@ export default function AdminDashboard() {
     }
   };
 
+  const toggleSelectAll = () => {
+    if (selectedRooms.size === rooms.length) {
+      setSelectedRooms(new Set());
+    } else {
+      setSelectedRooms(new Set(rooms.map(r => r.id)));
+    }
+  };
+
+  const toggleSelect = (roomId: string) => {
+    setSelectedRooms(prev => {
+      const next = new Set(prev);
+      if (next.has(roomId)) {
+        next.delete(roomId);
+      } else {
+        next.add(roomId);
+      }
+      return next;
+    });
+  };
+
+  const batchDelete = async () => {
+    if (selectedRooms.size === 0) return;
+    if (!confirm(`确定要删除选中的 ${selectedRooms.size} 个房间吗？`)) return;
+
+    setDeleting(true);
+    try {
+      await api.post('/admin/rooms/batch-delete', {
+        roomIds: Array.from(selectedRooms),
+      });
+      setRooms(prev => prev.filter(r => !selectedRooms.has(r.id)));
+      setSelectedRooms(new Set());
+    } catch (err: any) {
+      alert(err.response?.data?.message || '批量删除失败');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const logout = () => {
     localStorage.clear();
     navigate('/login');
@@ -95,7 +140,18 @@ export default function AdminDashboard() {
         </div>
       </div>
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <h2 className="text-lg font-semibold mb-4">所有房间</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold">所有房间 ({rooms.length})</h2>
+          {selectedRooms.size > 0 && (
+            <button
+              onClick={batchDelete}
+              disabled={deleting}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50"
+            >
+              {deleting ? '删除中...' : `删除选中 (${selectedRooms.size})`}
+            </button>
+          )}
+        </div>
         {loading ? (
           <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">加载中...</div>
         ) : rooms.length === 0 ? (
@@ -105,6 +161,14 @@ export default function AdminDashboard() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-4 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={selectedRooms.size === rooms.length && rooms.length > 0}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-gray-300"
+                    />
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">房间名称</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">创建者</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
@@ -114,7 +178,15 @@ export default function AdminDashboard() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {rooms.map((room) => (
-                  <tr key={room.id}>
+                  <tr key={room.id} className={selectedRooms.has(room.id) ? 'bg-blue-50' : ''}>
+                    <td className="px-4 py-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedRooms.has(room.id)}
+                        onChange={() => toggleSelect(room.id)}
+                        className="w-4 h-4 rounded border-gray-300"
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {editingRoom === room.id ? (
                         <input

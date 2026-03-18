@@ -132,3 +132,12 @@ func GetRoomsWithTeacherInfo() ([]map[string]interface{}, error) {
 		Find(&results).Error
 	return results, err
 }
+
+// AdminBatchDeleteRooms allows admin to delete multiple rooms
+func AdminBatchDeleteRooms(roomIDs []string) error {
+	db := database.GetDB()
+	// Delete room students first
+	db.Where("room_id IN ?", roomIDs).Delete(&models.RoomStudent{})
+	// Delete rooms
+	return db.Delete(&models.Room{}, "id IN ?", roomIDs).Error
+}

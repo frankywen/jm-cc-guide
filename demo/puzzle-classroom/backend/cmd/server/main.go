@@ -82,6 +82,7 @@ func main() {
 			admin.GET("/rooms", handlers.AdminGetAllRooms)
 			admin.DELETE("/rooms/:id", handlers.AdminDeleteRoom)
 			admin.PUT("/rooms/:id", handlers.AdminUpdateRoom)
+			admin.POST("/rooms/batch-delete", handlers.AdminBatchDeleteRooms)
 		}
 	}
 

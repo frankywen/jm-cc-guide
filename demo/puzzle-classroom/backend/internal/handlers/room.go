@@ -487,3 +487,32 @@ func AdminUpdateRoom(c *gin.Context) {
 
 	utils.Success(c, gin.H{"message": "更新成功"})
 }
+
+// AdminBatchDeleteRooms allows admin to delete multiple rooms
+func AdminBatchDeleteRooms(c *gin.Context) {
+	var req struct {
+		RoomIDs []string `json:"roomIds" binding:"required,min=1"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, "参数错误")
+		return
+	}
+
+	if err := services.AdminBatchDeleteRooms(req.RoomIDs); err != nil {
+		utils.InternalError(c, "批量删除房间失败")
+		return
+	}
+
+	// Broadcast room:deleted for each room
+	hub := ws.GetGlobalHub()
+	if hub != nil {
+		for _, roomID := range req.RoomIDs {
+			hub.BroadcastToRole("student", ws.Message{
+				Type: "room:deleted",
+				Data: map[string]string{"roomId": roomID},
+			})
+		}
+	}
+
+	utils.Success(c, gin.H{"message": "批量删除成功", "count": len(req.RoomIDs)})
+}
