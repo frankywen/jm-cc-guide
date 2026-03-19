@@ -6,7 +6,10 @@ import { Room } from '../types';
 export default function TeacherDashboard() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [newRoomName, setNewRoomName] = useState('');
+  const [gameType, setGameType] = useState<'game24' | 'sudoku'>('game24');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [creating, setCreating] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => { loadRooms(); }, []);
@@ -21,17 +24,37 @@ export default function TeacherDashboard() {
 
   const createRoom = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newRoomName.trim()) return;
+    if (!newRoomName.trim()) {
+      setError('请输入房间名称');
+      return;
+    }
+    setCreating(true);
+    setError('');
     try {
-      const res: any = await api.post('/rooms', { name: newRoomName });
-      if (res.code === 0) { setNewRoomName(''); loadRooms(); }
-    } catch (err) { console.error('Failed to create room:', err); }
+      const res: any = await api.post('/rooms', { name: newRoomName, gameType });
+      if (res.code === 0) {
+        setNewRoomName('');
+        loadRooms();
+      } else {
+        setError(res.message || '创建失败');
+      }
+    } catch (err: any) {
+      console.error('Failed to create room:', err);
+      setError(err.response?.data?.message || '创建失败，请重试');
+    } finally {
+      setCreating(false);
+    }
   };
 
   const deleteRoom = async (roomId: string) => {
     if (!confirm('确定要删除这个房间吗？')) return;
-    try { await api.delete('/rooms/' + roomId); loadRooms(); }
-    catch (err) { console.error('Failed to delete room:', err); }
+    try {
+      await api.delete('/rooms/' + roomId);
+      loadRooms();
+    } catch (err: any) {
+      console.error('Failed to delete room:', err);
+      setError(err.response?.data?.message || '删除失败');
+    }
   };
 
   const logout = () => {
@@ -39,6 +62,11 @@ export default function TeacherDashboard() {
       localStorage.clear();
       navigate('/login');
     }
+  };
+
+  const gameTypeLabels: Record<string, string> = {
+    'game24': '24点',
+    'sudoku': '数独'
   };
 
   return (
@@ -52,10 +80,22 @@ export default function TeacherDashboard() {
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4">创建新房间</h2>
-          <form onSubmit={createRoom} className="flex gap-4">
+          {error && (
+            <div className="mb-4 p-3 rounded bg-red-100 text-red-700">
+              {error}
+            </div>
+          )}
+          <form onSubmit={createRoom} className="flex gap-4 flex-wrap">
             <input type="text" value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)}
-              placeholder="房间名称" className="flex-1 px-4 py-2 border rounded-lg" />
-            <button type="submit" className="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700">创建</button>
+              placeholder="房间名称" className="flex-1 min-w-[200px] px-4 py-2 border rounded-lg" />
+            <select value={gameType} onChange={(e) => setGameType(e.target.value as 'game24' | 'sudoku')}
+              className="px-4 py-2 border rounded-lg">
+              <option value="game24">24点游戏</option>
+              <option value="sudoku">数独游戏</option>
+            </select>
+            <button type="submit" disabled={creating} className="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 disabled:opacity-50">
+              {creating ? '创建中...' : '创建'}
+            </button>
           </form>
         </div>
         <div className="bg-white rounded-lg shadow">
@@ -67,7 +107,10 @@ export default function TeacherDashboard() {
                <div key={room.id} className="px-6 py-4 flex items-center justify-between">
                  <div>
                    <h3 className="font-medium">{room.name}</h3>
-                   <p className="text-sm text-gray-500">状态: {room.status === 'waiting' ? '等待中' : room.status === 'playing' ? '游戏中' : '已结束'}</p>
+                   <p className="text-sm text-gray-500">
+                     类型: {gameTypeLabels[room.gameType] || room.gameType} |
+                     状态: {room.status === 'waiting' ? '等待中' : room.status === 'playing' ? '游戏中' : '已结束'}
+                   </p>
                  </div>
                  <div className="flex gap-2">
                    <button onClick={() => navigate('/teacher/room/' + room.id)} className="bg-primary-600 text-white px-4 py-2 rounded-lg">进入</button>

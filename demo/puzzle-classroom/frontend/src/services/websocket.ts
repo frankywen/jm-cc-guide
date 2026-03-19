@@ -34,9 +34,11 @@ class WebSocketService {
   connect(token: string): Promise<void> {
     return new Promise((resolve, reject) => {
       this.token = token; // Store token for reconnection
-      // In development, connect directly to backend to avoid Vite proxy issues
-      const wsHost = import.meta.env.DEV ? 'localhost:8080' : window.location.host;
-      const wsProtocol = import.meta.env.DEV ? 'ws:' : (window.location.protocol === 'https:' ? 'wss:' : 'ws:');
+      // Use current hostname with backend port, or window.location.host in production
+      const wsHost = import.meta.env.DEV
+        ? `${window.location.hostname}:8080`
+        : window.location.host;
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${wsProtocol}//${wsHost}/ws?token=${token}`;
       console.log('[WS] Connecting to:', wsUrl);
       this.ws = new WebSocket(wsUrl);
@@ -114,8 +116,16 @@ class WebSocketService {
   }
 
   disconnect() {
+    console.log('[WS] Disconnect called');
+    // Clear all handlers when disconnecting
+    this.handlers.clear();
+    this.onConnectCallbacks = [];
     this.ws?.close();
     this.ws = null;
+  }
+
+  isConnected(): boolean {
+    return this.ws?.readyState === WebSocket.OPEN;
   }
 }
 

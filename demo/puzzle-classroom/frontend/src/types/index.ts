@@ -23,7 +23,14 @@ export interface GameSession {
   totalQuestions: number;
   questions: string;
   status: string;
+  gameType?: string;
+  difficulty?: string;
   createdAt: string;
+}
+
+export interface SudokuQuestion {
+  puzzle: string;
+  solution?: string;
 }
 
 export interface StudentProgress {

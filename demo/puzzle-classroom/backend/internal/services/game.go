@@ -14,6 +14,12 @@ type GameQuestion struct {
 	Numbers []int `json:"numbers"`
 }
 
+// SudokuQuestionResponse represents a Sudoku question response
+type SudokuQuestionResponse struct {
+	Puzzle   string `json:"puzzle"`
+	Solution string `json:"solution,omitempty"` // Only included for teacher
+}
+
 // GenerateGame24Question generates a new 24-point game question
 func GenerateGame24Question() *GameQuestion {
 	return &GameQuestion{
@@ -21,9 +27,33 @@ func GenerateGame24Question() *GameQuestion {
 	}
 }
 
+// GenerateSudokuQuestion generates a new Sudoku question
+func GenerateSudokuQuestion(difficulty string) *SudokuQuestionResponse {
+	puzzle := games.GenerateSudoku(difficulty)
+	return &SudokuQuestionResponse{
+		Puzzle:   puzzle.Puzzle,
+		Solution: puzzle.Solution,
+	}
+}
+
 // ValidateGame24Answer validates a player's answer for the 24-point game
 func ValidateGame24Answer(numbers []int, answer string) bool {
 	return games.ValidateAnswer(numbers, answer)
+}
+
+// ValidateSudokuAnswer validates a player's answer for a Sudoku puzzle
+func ValidateSudokuAnswer(answer, solution string) bool {
+	return games.ValidateSudokuAnswer(answer, solution)
+}
+
+// CalculateGame24Score calculates score for 24-point game
+func CalculateGame24Score(timeSpent int) int {
+	return games.CalculateScore(timeSpent)
+}
+
+// CalculateSudokuScore calculates score for Sudoku game
+func CalculateSudokuScore(timeSpent int, difficulty string) int {
+	return games.CalculateSudokuScore(timeSpent, difficulty)
 }
 
 // SaveGameRecord saves a game record to the database
@@ -33,9 +63,18 @@ func SaveGameRecord(roomID, studentID, gameType, question, answer string, correc
 
 // SaveGameRecordWithSession saves a game record with session info to the database
 func SaveGameRecordWithSession(roomID, sessionID string, questionIndex int, studentID, gameType, question, answer string, correct bool, timeSpent int) (*models.GameRecord, error) {
+	return SaveGameRecordWithSessionAndDifficulty(roomID, sessionID, questionIndex, studentID, gameType, question, answer, correct, timeSpent, "")
+}
+
+// SaveGameRecordWithSessionAndDifficulty saves a game record with session info and difficulty (for Sudoku)
+func SaveGameRecordWithSessionAndDifficulty(roomID, sessionID string, questionIndex int, studentID, gameType, question, answer string, correct bool, timeSpent int, difficulty string) (*models.GameRecord, error) {
 	score := 0
 	if correct {
-		score = games.CalculateScore(timeSpent)
+		if gameType == "sudoku" {
+			score = CalculateSudokuScore(timeSpent, difficulty)
+		} else {
+			score = CalculateGame24Score(timeSpent)
+		}
 	}
 
 	record := models.GameRecord{

@@ -3,15 +3,18 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { wsService } from '../services/websocket';
 import { useAuthStore } from '../stores/authStore';
-import { Room, StudentProgress } from '../types';
+import { Room, StudentProgress, SudokuQuestion } from '../types';
 
 interface Student { id: string; username: string; }
 
 interface GameStartData {
   sessionId: string;
   totalQuestions: number;
-  numbers: number[];
+  numbers?: number[];
+  puzzle?: string;
   currentIndex: number;
+  gameType: string;
+  difficulty?: string;
 }
 
 interface ProgressUpdateData {
@@ -26,10 +29,13 @@ export default function TeacherRoom() {
   const [room, setRoom] = useState<Room | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [question, setQuestion] = useState<number[]>([]);
+  const [sudokuPuzzle, setSudokuPuzzle] = useState<string>('');
+  const [sudokuSolution, setSudokuSolution] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   // Multi-question state
   const [questionCount, setQuestionCount] = useState(10);
+  const [difficulty, setDifficulty] = useState<string>('easy');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -47,6 +53,10 @@ export default function TeacherRoom() {
 
   const connectWebSocket = async () => {
     if (!token) return;
+
+    // Clear previous handlers and callbacks to avoid duplicates
+    wsService.clearOnConnectCallbacks();
+
     // Register handlers and callbacks BEFORE connecting (for reconnection)
     wsService.on('user_joined', (msg) => {
       console.log('[TeacherRoom] Received user_joined:', msg);
@@ -75,30 +85,42 @@ export default function TeacherRoom() {
 
   const handleStudentLeft = (msg: any) => {
     console.log('[TeacherRoom] Student left:', msg.data);
-    const { studentId, progress } = msg.data;
-    // Mark student as disconnected
-    setDisconnectedStudents(prev => new Set(prev).add(studentId));
-    // Update progress with last known data
-    if (progress) {
-      setStudentProgress(prev => {
-        const exists = prev.find(p => p.studentId === studentId);
-        if (exists) {
-          return prev.map(p => p.studentId === studentId ? { ...p, ...progress } : p);
-        }
-        return [...prev, progress];
-      });
-    }
+    const { studentId } = msg.data;
+    // Remove student from the list
+    setStudents(prev => prev.filter(s => s.id !== studentId));
+    // Also remove from progress
+    setStudentProgress(prev => prev.filter(p => p.studentId !== studentId));
+    // Remove from disconnected set
+    setDisconnectedStudents(prev => {
+      const next = new Set(prev);
+      next.delete(studentId);
+      return next;
+    });
   };
 
   const startGame = async () => {
     try {
-      const res: any = await api.post('/startGame', { roomId, questionCount });
+      const res: any = await api.post('/startGame', {
+        roomId,
+        questionCount,
+        difficulty: room?.gameType === 'sudoku' ? difficulty : undefined
+      });
       if (res.code === 0) {
-        const { sessionId: newSessionId, totalQuestions: total, firstQuestion } = res.data;
+        const { sessionId: newSessionId, totalQuestions: total, firstQuestion, gameType } = res.data;
         setSessionId(newSessionId);
         setTotalQuestions(total);
         setCurrentIndex(0);
-        setQuestion(firstQuestion);
+
+        // Set question based on game type
+        if (gameType === 'sudoku') {
+          setSudokuPuzzle(firstQuestion.puzzle);
+          setSudokuSolution(firstQuestion.solution || '');
+          setQuestion([]);
+        } else {
+          setQuestion(firstQuestion);
+          setSudokuPuzzle('');
+          setSudokuSolution('');
+        }
 
         // Initialize progress for all students
         const initialProgress = students.map(s => ({
@@ -118,7 +140,10 @@ export default function TeacherRoom() {
             sessionId: newSessionId,
             totalQuestions: total,
             currentIndex: 0,
-            numbers: firstQuestion
+            gameType,
+            difficulty: res.data.difficulty,
+            numbers: gameType === 'game24' ? firstQuestion : undefined,
+            puzzle: gameType === 'sudoku' ? firstQuestion.puzzle : undefined
           }
         });
         setRoom((prev) => prev ? { ...prev, status: 'playing' } : null);
@@ -141,9 +166,19 @@ export default function TeacherRoom() {
       });
 
       if (res.code === 0) {
-        const { question } = res.data;
+        const { question, gameType } = res.data;
         setCurrentIndex(nextIndex);
-        setQuestion(question);
+
+        // Set question based on game type
+        if (gameType === 'sudoku') {
+          setSudokuPuzzle(question.puzzle);
+          setSudokuSolution(question.solution || '');
+          setQuestion([]);
+        } else {
+          setQuestion(question);
+          setSudokuPuzzle('');
+          setSudokuSolution('');
+        }
 
         // Broadcast next question to students
         wsService.send({
@@ -152,7 +187,9 @@ export default function TeacherRoom() {
           data: {
             sessionId,
             currentIndex: nextIndex,
-            numbers: question
+            gameType,
+            numbers: gameType === 'game24' ? question : undefined,
+            puzzle: gameType === 'sudoku' ? question.puzzle : undefined
           }
         });
       }
@@ -162,23 +199,26 @@ export default function TeacherRoom() {
   };
 
   const endGame = async () => {
+    if (!confirm('确定要结束游戏吗？')) return;
+
     await api.put('/rooms/' + roomId + '/status', { status: 'finished' });
     wsService.send({ type: 'game:end', roomId });
     setRoom((prev) => prev ? { ...prev, status: 'finished' } : null);
     setQuestion([]);
-    setSessionId(null);
-    setTotalQuestions(0);
-    setCurrentIndex(0);
+    // Keep sessionId and studentProgress for final ranking display
   };
 
   const resetGame = async () => {
     await api.put('/rooms/' + roomId + '/status', { status: 'waiting' });
     setRoom((prev) => prev ? { ...prev, status: 'waiting' } : null);
     setQuestion([]);
+    setSudokuPuzzle('');
+    setSudokuSolution('');
     setSessionId(null);
     setTotalQuestions(0);
     setCurrentIndex(0);
     setStudentProgress([]);
+    setDisconnectedStudents(new Set());
   };
 
   const refreshProgress = async () => {
@@ -225,12 +265,60 @@ export default function TeacherRoom() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-4">游戏控制</h2>
-            {question.length === 4 && (
+            {/* Question display */}
+            {room?.gameType === 'game24' && question.length === 4 && (
               <div className="mb-4 p-4 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-500 mb-2">当前题目:</p>
                 <div className="flex justify-center gap-2">
                   {question.map((num, i) => <span key={i} className="w-10 h-10 bg-primary-100 rounded flex items-center justify-center font-bold text-primary-600">{num}</span>)}
                 </div>
+              </div>
+            )}
+            {room?.gameType === 'sudoku' && sudokuPuzzle && (
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-500 mb-2">当前数独题目:</p>
+                <div className="flex justify-center">
+                  <div className="grid grid-cols-9 gap-0.5 border-2 border-gray-800">
+                    {sudokuPuzzle.split('').map((cell, i) => {
+                      const row = Math.floor(i / 9);
+                      const col = i % 9;
+                      const borderRight = (col + 1) % 3 === 0 && col < 8 ? 'border-r-2 border-gray-800' : '';
+                      const borderBottom = (row + 1) % 3 === 0 && row < 8 ? 'border-b-2 border-gray-800' : '';
+                      return (
+                        <div
+                          key={i}
+                          className={`w-8 h-8 flex items-center justify-center text-sm font-medium ${borderRight} ${borderBottom} ${cell === '.' ? 'bg-white' : 'bg-gray-200'}`}
+                        >
+                          {cell === '.' ? '' : cell}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                {sudokuSolution && (
+                  <details className="mt-2">
+                    <summary className="text-sm text-gray-500 cursor-pointer">查看答案</summary>
+                    <div className="mt-2 flex justify-center">
+                      <div className="grid grid-cols-9 gap-0.5 border-2 border-gray-800">
+                        {sudokuSolution.split('').map((cell, i) => {
+                          const row = Math.floor(i / 9);
+                          const col = i % 9;
+                          const borderRight = (col + 1) % 3 === 0 && col < 8 ? 'border-r-2 border-gray-800' : '';
+                          const borderBottom = (row + 1) % 3 === 0 && row < 8 ? 'border-b-2 border-gray-800' : '';
+                          const isGiven = sudokuPuzzle[i] !== '.';
+                          return (
+                            <div
+                              key={i}
+                              className={`w-8 h-8 flex items-center justify-center text-sm font-medium ${borderRight} ${borderBottom} ${isGiven ? 'bg-gray-200' : 'bg-green-100'}`}
+                            >
+                              {cell}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </details>
+                )}
               </div>
             )}
             <div className="flex gap-2 flex-wrap">
@@ -246,17 +334,30 @@ export default function TeacherRoom() {
                     <option value={15}>15 题</option>
                     <option value={20}>20 题</option>
                   </select>
+                  {room.gameType === 'sudoku' && (
+                    <select
+                      value={difficulty}
+                      onChange={(e) => setDifficulty(e.target.value)}
+                      className="px-4 py-2 border rounded-lg"
+                    >
+                      <option value="easy">简单</option>
+                      <option value="medium">中等</option>
+                      <option value="hard">困难</option>
+                      <option value="very-hard">非常困难</option>
+                      <option value="insane">疯狂</option>
+                      <option value="inhuman">非人类</option>
+                    </select>
+                  )}
                   <button onClick={startGame} className="flex-1 bg-green-500 text-white py-2 rounded-lg">开始游戏</button>
                 </>
               )}
               {room.status === 'playing' && (
                 <>
-                  {currentIndex < totalQuestions - 1 ? (
-                    <button onClick={nextQuestion} className="flex-1 bg-blue-500 text-white py-2 rounded-lg">下一题</button>
-                  ) : (
-                    <button onClick={endGame} className="flex-1 bg-red-500 text-white py-2 rounded-lg">结束游戏</button>
+                  {currentIndex < totalQuestions - 1 && (
+                    <button onClick={nextQuestion} className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600">下一题</button>
                   )}
-                  <button onClick={refreshProgress} className="px-4 bg-gray-200 text-gray-700 py-2 rounded-lg">刷新进度</button>
+                  <button onClick={endGame} className="flex-1 bg-red-500 text-white py-2 rounded-lg hover:bg-red-600">结束游戏</button>
+                  <button onClick={refreshProgress} className="px-4 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300">刷新进度</button>
                 </>
               )}
               {room.status === 'finished' && <button onClick={resetGame} className="flex-1 bg-primary-600 text-white py-2 rounded-lg">重新开始</button>}
@@ -294,12 +395,23 @@ export default function TeacherRoom() {
           </div>
         </div>
 
-        {sessionId && studentProgress.length > 0 && (() => {
+        {(room.status === 'playing' || room.status === 'finished') && studentProgress.length > 0 && (() => {
           // Sort students by totalScore descending
           const rankedProgress = [...studentProgress].sort((a, b) => b.totalScore - a.totalScore);
+          const isGameFinished = room.status === 'finished';
+
           return (
-            <div className="mt-6 bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4">实时排行榜</h2>
+            <div className={`mt-6 rounded-lg shadow p-6 ${isGameFinished ? 'bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-300' : 'bg-white'}`}>
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                {isGameFinished ? (
+                  <>
+                    <span className="text-2xl">🏆</span>
+                    <span className="text-xl">最终排名</span>
+                  </>
+                ) : (
+                  '实时排行榜'
+                )}
+              </h2>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -314,28 +426,29 @@ export default function TeacherRoom() {
                   <tbody>
                     {rankedProgress.map((p, index) => {
                       const isDisconnected = disconnectedStudents.has(p.studentId);
+                      const rankBg = index === 0 ? 'bg-yellow-100' : index === 1 ? 'bg-gray-100' : index === 2 ? 'bg-orange-100' : '';
                       return (
-                        <tr key={p.studentId} className={`border-t ${index < 3 ? 'bg-yellow-50' : ''} ${isDisconnected ? 'opacity-60' : ''}`}>
-                          <td className="py-2">
-                            {index === 0 && <span className="text-xl">🥇</span>}
-                            {index === 1 && <span className="text-xl">🥈</span>}
-                            {index === 2 && <span className="text-xl">🥉</span>}
-                            {index > 2 && <span className="text-gray-500">#{index + 1}</span>}
+                        <tr key={p.studentId} className={`border-t ${rankBg} ${isDisconnected ? 'opacity-60' : ''}`}>
+                          <td className="py-3">
+                            {index === 0 && <span className="text-2xl">🥇</span>}
+                            {index === 1 && <span className="text-2xl">🥈</span>}
+                            {index === 2 && <span className="text-2xl">🥉</span>}
+                            {index > 2 && <span className="text-gray-500 font-medium">#{index + 1}</span>}
                           </td>
-                          <td className="py-2">
+                          <td className="py-3">
                             <span className="font-medium">{p.username}</span>
                             {isDisconnected && <span className="ml-2 text-xs text-red-500 bg-red-100 px-1.5 py-0.5 rounded">已断开</span>}
                           </td>
-                          <td className="py-2">
+                          <td className="py-3">
                             <div className="w-full bg-gray-200 rounded-full h-2">
                               <div
-                                className="bg-green-500 h-2 rounded-full transition-all"
+                                className={`h-2 rounded-full transition-all ${isGameFinished ? 'bg-yellow-500' : 'bg-green-500'}`}
                                 style={{ width: `${(p.completedCount / totalQuestions) * 100}%` }}
                               />
                             </div>
                           </td>
-                          <td className="py-2">{p.completedCount}/{totalQuestions}</td>
-                          <td className="py-2 font-bold text-primary-600">{p.totalScore}</td>
+                          <td className="py-3">{p.completedCount}/{totalQuestions}</td>
+                          <td className={`py-3 font-bold ${isGameFinished && index < 3 ? 'text-xl text-primary-600' : 'text-primary-600'}`}>{p.totalScore}</td>
                         </tr>
                       );
                     })}

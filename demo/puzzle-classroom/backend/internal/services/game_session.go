@@ -13,7 +13,9 @@ import (
 
 // CreateGameSessionRequest is the request for creating a game session
 type CreateGameSessionRequest struct {
-	QuestionCount int `json:"questionCount" binding:"required,min=1,max=50"`
+	QuestionCount int    `json:"questionCount" binding:"required,min=1,max=50"`
+	GameType      string `json:"gameType"` // game24 or sudoku
+	Difficulty    string `json:"difficulty"` // For Sudoku: easy, medium, hard, etc.
 }
 
 // SessionProgress represents a student's progress in a session
@@ -33,13 +35,41 @@ type SessionProgressResponse struct {
 
 // CreateGameSession creates a new game session with multiple questions
 func CreateGameSession(roomID string, questionCount int) (*models.GameSession, error) {
-	// Generate questions
-	questions := make([][]int, questionCount)
-	for i := 0; i < questionCount; i++ {
-		questions[i] = games.GenerateQuestion()
+	return CreateGameSessionWithType(roomID, questionCount, "game24", "")
+}
+
+// CreateGameSessionWithType creates a new game session with specific game type
+func CreateGameSessionWithType(roomID string, questionCount int, gameType string, difficulty string) (*models.GameSession, error) {
+	if gameType == "" {
+		gameType = "game24"
 	}
 
-	questionsJSON, err := json.Marshal(questions)
+	var questionsJSON []byte
+	var err error
+
+	if gameType == "sudoku" {
+		if difficulty == "" {
+			difficulty = "easy"
+		}
+		// Generate Sudoku questions
+		questions := make([]models.SudokuQuestion, questionCount)
+		for i := 0; i < questionCount; i++ {
+			puzzle := games.GenerateSudoku(difficulty)
+			questions[i] = models.SudokuQuestion{
+				Puzzle:   puzzle.Puzzle,
+				Solution: puzzle.Solution,
+			}
+		}
+		questionsJSON, err = json.Marshal(questions)
+	} else {
+		// Generate 24-point game questions (default)
+		questions := make([][]int, questionCount)
+		for i := 0; i < questionCount; i++ {
+			questions[i] = games.GenerateQuestion()
+		}
+		questionsJSON, err = json.Marshal(questions)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -50,6 +80,8 @@ func CreateGameSession(roomID string, questionCount int) (*models.GameSession, e
 		TotalQuestions: questionCount,
 		Questions:      string(questionsJSON),
 		Status:         "active",
+		GameType:       gameType,
+		Difficulty:     difficulty,
 		CreatedAt:      time.Now(),
 	}
 
@@ -90,6 +122,16 @@ func GetSessionQuestions(session *models.GameSession) ([][]int, error) {
 	return questions, nil
 }
 
+// GetSessionSudokuQuestions parses and returns Sudoku questions for a session
+func GetSessionSudokuQuestions(session *models.GameSession) ([]models.SudokuQuestion, error) {
+	var questions []models.SudokuQuestion
+	err := json.Unmarshal([]byte(session.Questions), &questions)
+	if err != nil {
+		return nil, err
+	}
+	return questions, nil
+}
+
 // GetSessionQuestionByIndex gets a specific question by index from a session
 func GetSessionQuestionByIndex(session *models.GameSession, index int) ([]int, error) {
 	questions, err := GetSessionQuestions(session)
@@ -100,6 +142,18 @@ func GetSessionQuestionByIndex(session *models.GameSession, index int) ([]int, e
 		return nil, errors.New("question index out of range")
 	}
 	return questions[index], nil
+}
+
+// GetSessionSudokuQuestionByIndex gets a specific Sudoku question by index from a session
+func GetSessionSudokuQuestionByIndex(session *models.GameSession, index int) (*models.SudokuQuestion, error) {
+	questions, err := GetSessionSudokuQuestions(session)
+	if err != nil {
+		return nil, err
+	}
+	if index < 0 || index >= len(questions) {
+		return nil, errors.New("question index out of range")
+	}
+	return &questions[index], nil
 }
 
 // UpdateProgress updates a student's progress in a session

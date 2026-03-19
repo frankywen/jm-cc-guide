@@ -20,7 +20,10 @@ export default function RoomList() {
 
     const connectWS = async () => {
       try {
-        await wsService.connect(token);
+        // Only connect if not already connected
+        if (!wsService.isConnected()) {
+          await wsService.connect(token);
+        }
       } catch (err) {
         console.error('[RoomList] Failed to connect WebSocket:', err);
       }
@@ -28,9 +31,7 @@ export default function RoomList() {
 
     connectWS();
 
-    return () => {
-      wsService.disconnect();
-    };
+    // Don't disconnect on unmount - let the next page handle it
   }, [token]);
 
   // Listen for room updates
@@ -52,13 +53,26 @@ export default function RoomList() {
 
   const handleRoomUpdated = useCallback((message: any) => {
     console.log('[RoomList] Room updated:', message.data);
-    const { roomId, status } = message.data;
-    setRooms(prev => prev.map(r => {
-      if (r.id === roomId) {
-        return { ...r, status };
+    const { roomId, status, room } = message.data;
+    setRooms(prev => {
+      // Check if room exists in current list
+      const existingIndex = prev.findIndex(r => r.id === roomId);
+      if (existingIndex >= 0) {
+        // Update existing room
+        return prev.map(r => {
+          if (r.id === roomId) {
+            return { ...r, status };
+          }
+          return r;
+        });
+      } else {
+        // Room not in list - if status is waiting or playing, add it
+        if ((status === 'waiting' || status === 'playing') && room) {
+          return [...prev, room];
+        }
+        return prev;
       }
-      return r;
-    }));
+    });
   }, []);
 
   useEffect(() => {
@@ -90,6 +104,8 @@ export default function RoomList() {
     }
   };
 
+  const gameTypeLabels: Record<string, string> = { 'game24': '24点', 'sudoku': '数独' };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow">
@@ -108,7 +124,7 @@ export default function RoomList() {
          <div className="space-y-4">
            {rooms.map((room) => (
              <div key={room.id} className="bg-white rounded-lg shadow p-4 flex items-center justify-between">
-               <div><h3 className="font-medium">{room.name}</h3><p className="text-sm text-gray-500">游戏类型: 24点 | 状态: {room.status}</p></div>
+               <div><h3 className="font-medium">{room.name}</h3><p className="text-sm text-gray-500">游戏类型: {gameTypeLabels[room.gameType] || room.gameType} | 状态: {room.status === 'waiting' ? '等待中' : room.status === 'playing' ? '游戏中' : '已结束'}</p></div>
                <button onClick={() => joinRoom(room.id)} className="bg-primary-600 text-white px-6 py-2 rounded-lg">加入</button>
              </div>
            ))}

@@ -19,7 +19,7 @@ func CreateRoom(c *gin.Context) {
 		utils.BadRequest(c, "参数错误")
 		return
 	}
-	room, err := services.CreateRoom(userID.(string), req.Name)
+	room, err := services.CreateRoom(userID.(string), req.Name, req.GameType)
 	if err != nil {
 		utils.InternalError(c, "创建房间失败")
 		return
@@ -102,11 +102,14 @@ func UpdateRoomStatus(c *gin.Context) {
 	// Broadcast room:updated to all students
 	hub := ws.GetGlobalHub()
 	if hub != nil {
+		// Update room status before broadcasting
+		room.Status = req.Status
 		hub.BroadcastToRole("student", ws.Message{
 			Type: "room:updated",
 			Data: map[string]interface{}{
 				"roomId": roomID,
 				"status": req.Status,
+				"room":   room,
 			},
 		})
 	}
@@ -147,6 +150,22 @@ func SubmitAnswer(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	roomID := c.Param("id")
 
+	// Get room to determine game type
+	room, err := services.GetRoomByID(roomID)
+	if err != nil {
+		utils.NotFound(c, "房间不存在")
+		return
+	}
+
+	if room.GameType == "sudoku" {
+		handleSudokuAnswer(c, userID, roomID, room)
+	} else {
+		handleGame24Answer(c, userID, roomID)
+	}
+}
+
+// handleGame24Answer handles 24-point game answer submission
+func handleGame24Answer(c *gin.Context, userID interface{}, roomID string) {
 	var req struct {
 		Answer        string `json:"answer" binding:"required"`
 		Question      string `json:"question" binding:"required"`
@@ -239,6 +258,154 @@ func SubmitAnswer(c *gin.Context) {
 	utils.Success(c, response)
 }
 
+// handleSudokuAnswer handles Sudoku answer submission
+func handleSudokuAnswer(c *gin.Context, userID interface{}, roomID string, room *models.Room) {
+	var req struct {
+		Answer        string `json:"answer" binding:"required"`   // 81-character string
+		QuestionIndex int    `json:"questionIndex" binding:"min=0"`
+		SessionID     string `json:"sessionId" binding:"required"`
+		TimeSpent     int    `json:"timeSpent"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, "参数错误")
+		return
+	}
+
+	// Get session
+	session, err := services.GetSessionByID(req.SessionID)
+	if err != nil {
+		utils.NotFound(c, "游戏会话不存在")
+		return
+	}
+
+	// Get the question to get the solution
+	question, err := services.GetSessionSudokuQuestionByIndex(session, req.QuestionIndex)
+	if err != nil {
+		utils.BadRequest(c, "题目索引无效")
+		return
+	}
+
+	// Validate answer against solution
+	correct := services.ValidateSudokuAnswer(req.Answer, question.Solution)
+
+	// Save game record with difficulty
+	record, err := services.SaveGameRecordWithSessionAndDifficulty(roomID, req.SessionID, req.QuestionIndex, userID.(string), "sudoku", question.Puzzle, req.Answer, correct, req.TimeSpent, session.Difficulty)
+	if err != nil {
+		utils.InternalError(c, "保存记录失败")
+		return
+	}
+
+	response := gin.H{
+		"correct": correct,
+		"score":   record.Score,
+	}
+
+	// Update progress
+	progress, err := services.UpdateProgress(req.SessionID, userID.(string), correct, record.Score, session.TotalQuestions)
+	if err == nil {
+		response["completed"] = progress.CompletedCount >= session.TotalQuestions
+		response["totalCompleted"] = progress.CompletedCount
+		response["totalQuestions"] = session.TotalQuestions
+		response["totalScore"] = progress.TotalScore
+		response["nextIndex"] = progress.CurrentIndex
+
+		// Return next question if not completed
+		if progress.CompletedCount < session.TotalQuestions {
+			nextQuestion, err := services.GetSessionSudokuQuestionByIndex(session, progress.CurrentIndex)
+			if err == nil {
+				response["nextQuestion"] = gin.H{
+					"puzzle": nextQuestion.Puzzle,
+				}
+			}
+		}
+
+		// Broadcast progress update to teacher
+		allProgress, _ := services.GetSessionProgress(req.SessionID)
+		hub := ws.GetGlobalHub()
+		if hub != nil {
+			hub.Broadcast(roomID, ws.Message{
+				Type: "progress:update",
+				Data: gin.H{
+					"sessionId": req.SessionID,
+					"students":  allProgress,
+				},
+			}, "")
+		}
+	}
+
+	utils.Success(c, response)
+}
+
+// SkipQuestion allows student to skip current question
+func SkipQuestion(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	roomID := c.Param("id")
+
+	var req struct {
+		SessionID     string `json:"sessionId" binding:"required"`
+		QuestionIndex int    `json:"questionIndex" binding:"min=0"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, "参数错误")
+		return
+	}
+
+	// Get session
+	session, err := services.GetSessionByID(req.SessionID)
+	if err != nil {
+		utils.NotFound(c, "游戏不存在")
+		return
+	}
+
+	// Update progress (skip = incorrect with 0 score)
+	progress, err := services.UpdateProgress(req.SessionID, userID.(string), false, 0, session.TotalQuestions)
+	if err != nil {
+		utils.InternalError(c, "更新进度失败")
+		return
+	}
+
+	response := gin.H{
+		"skipped":        true,
+		"totalCompleted": progress.CompletedCount,
+		"totalQuestions": session.TotalQuestions,
+		"totalScore":     progress.TotalScore,
+		"nextIndex":      progress.CurrentIndex,
+		"completed":      progress.CompletedCount >= session.TotalQuestions,
+	}
+
+	// Return next question if not completed
+	if progress.CompletedCount < session.TotalQuestions {
+		if session.GameType == "sudoku" {
+			nextQuestion, err := services.GetSessionSudokuQuestionByIndex(session, progress.CurrentIndex)
+			if err == nil {
+				response["nextQuestion"] = gin.H{
+					"puzzle": nextQuestion.Puzzle,
+				}
+			}
+		} else {
+			nextQuestion, err := services.GetSessionQuestionByIndex(session, progress.CurrentIndex)
+			if err == nil {
+				response["nextQuestion"] = nextQuestion
+			}
+		}
+	}
+
+	// Broadcast progress update to teacher
+	allProgress, _ := services.GetSessionProgress(req.SessionID)
+	hub := ws.GetGlobalHub()
+	if hub != nil {
+		hub.Broadcast(roomID, ws.Message{
+			Type: "progress:update",
+			Data: gin.H{
+				"sessionId": req.SessionID,
+				"students":  allProgress,
+			},
+		}, "")
+	}
+
+	utils.Success(c, response)
+}
+
 // StartGame starts a new multi-question game session
 func StartGame(c *gin.Context) {
 	userID, _ := c.Get("userID")
@@ -246,6 +413,7 @@ func StartGame(c *gin.Context) {
 	var req struct {
 		RoomID        string `json:"roomId" binding:"required"`
 		QuestionCount int    `json:"questionCount" binding:"required,min=1,max=50"`
+		Difficulty    string `json:"difficulty"` // For Sudoku: easy, medium, hard, etc.
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, "参数错误")
@@ -264,17 +432,42 @@ func StartGame(c *gin.Context) {
 	}
 
 	// Create game session
-	session, err := services.CreateGameSession(req.RoomID, req.QuestionCount)
+	session, err := services.CreateGameSessionWithType(req.RoomID, req.QuestionCount, room.GameType, req.Difficulty)
 	if err != nil {
 		utils.InternalError(c, "创建游戏失败")
 		return
 	}
 
 	// Get first question
-	questions, err := services.GetSessionQuestions(session)
-	if err != nil {
-		utils.InternalError(c, "获取题目失败")
-		return
+	if room.GameType == "sudoku" {
+		questions, err := services.GetSessionSudokuQuestions(session)
+		if err != nil {
+			utils.InternalError(c, "获取题目失败")
+			return
+		}
+		utils.Success(c, gin.H{
+			"sessionId":      session.ID,
+			"totalQuestions": session.TotalQuestions,
+			"firstQuestion": gin.H{
+				"puzzle": questions[0].Puzzle,
+			},
+			"currentIndex": 0,
+			"gameType":     room.GameType,
+			"difficulty":   session.Difficulty,
+		})
+	} else {
+		questions, err := services.GetSessionQuestions(session)
+		if err != nil {
+			utils.InternalError(c, "获取题目失败")
+			return
+		}
+		utils.Success(c, gin.H{
+			"sessionId":      session.ID,
+			"totalQuestions": session.TotalQuestions,
+			"firstQuestion":  questions[0],
+			"currentIndex":   0,
+			"gameType":       room.GameType,
+		})
 	}
 
 	// Update room status
@@ -282,13 +475,6 @@ func StartGame(c *gin.Context) {
 		utils.InternalError(c, "更新状态失败")
 		return
 	}
-
-	utils.Success(c, gin.H{
-		"sessionId":      session.ID,
-		"totalQuestions": session.TotalQuestions,
-		"firstQuestion":  questions[0],
-		"currentIndex":   0,
-	})
 }
 
 // GetGameProgress gets the progress of all students in a game session
@@ -350,29 +536,47 @@ func GetNextQuestion(c *gin.Context) {
 		return
 	}
 
-	// Get question by index
-	question, err := services.GetSessionQuestionByIndex(session, req.Index)
-	if err != nil {
-		utils.BadRequest(c, "题目索引无效")
-		return
-	}
-
 	// Update session's current index
 	if err := services.UpdateSessionCurrentIndex(session.ID, req.Index); err != nil {
 		utils.InternalError(c, "更新题目索引失败")
 		return
 	}
 
-	utils.Success(c, gin.H{
-		"question":     question,
-		"currentIndex": req.Index,
-		"sessionId":    session.ID,
-	})
+	// Get question by index
+	if session.GameType == "sudoku" {
+		question, err := services.GetSessionSudokuQuestionByIndex(session, req.Index)
+		if err != nil {
+			utils.BadRequest(c, "题目索引无效")
+			return
+		}
+		utils.Success(c, gin.H{
+			"question": gin.H{
+				"puzzle":   question.Puzzle,
+				"solution": question.Solution,
+			},
+			"currentIndex": req.Index,
+			"sessionId":    session.ID,
+			"gameType":     session.GameType,
+		})
+	} else {
+		question, err := services.GetSessionQuestionByIndex(session, req.Index)
+		if err != nil {
+			utils.BadRequest(c, "题目索引无效")
+			return
+		}
+		utils.Success(c, gin.H{
+			"question":     question,
+			"currentIndex": req.Index,
+			"sessionId":    session.ID,
+			"gameType":     session.GameType,
+		})
+	}
 }
 
 // GetCurrentGameState gets the current game state for students joining mid-game
 func GetCurrentGameState(c *gin.Context) {
 	roomID := c.Param("id")
+	userID, _ := c.Get("userID")
 
 	// Get room
 	room, err := services.GetRoomByID(roomID)
@@ -398,28 +602,70 @@ func GetCurrentGameState(c *gin.Context) {
 		return
 	}
 
-	// Get the current question based on session's current index
-	questions, err := services.GetSessionQuestions(session)
-	if err != nil || len(questions) == 0 {
-		utils.Success(c, gin.H{
-			"status": "waiting",
-		})
-		return
-	}
+	// Get student's individual progress if they have one
+	studentProgress, _ := services.GetStudentProgress(session.ID, userID.(string))
 
-	// Use session's current index, default to 0 if out of bounds
+	// Use student's current index if they have progress, otherwise use session's current index
 	currentIndex := session.CurrentIndex
-	if currentIndex < 0 || currentIndex >= len(questions) {
-		currentIndex = 0
+	totalScore := 0
+	completedCount := 0
+	if studentProgress != nil {
+		currentIndex = studentProgress.CurrentIndex
+		totalScore = studentProgress.TotalScore
+		completedCount = studentProgress.CompletedCount
 	}
 
-	utils.Success(c, gin.H{
-		"status":         "playing",
-		"sessionId":      session.ID,
-		"totalQuestions": session.TotalQuestions,
-		"currentIndex":   currentIndex,
-		"question":       questions[currentIndex],
-	})
+	// Handle different game types
+	if session.GameType == "sudoku" {
+		questions, err := services.GetSessionSudokuQuestions(session)
+		if err != nil || len(questions) == 0 {
+			utils.Success(c, gin.H{
+				"status": "waiting",
+			})
+			return
+		}
+
+		if currentIndex < 0 || currentIndex >= len(questions) {
+			currentIndex = 0
+		}
+
+		utils.Success(c, gin.H{
+			"status":         "playing",
+			"sessionId":      session.ID,
+			"totalQuestions": session.TotalQuestions,
+			"currentIndex":   currentIndex,
+			"question": gin.H{
+				"puzzle": questions[currentIndex].Puzzle,
+			},
+			"totalScore":     totalScore,
+			"completedCount": completedCount,
+			"gameType":       session.GameType,
+			"difficulty":     session.Difficulty,
+		})
+	} else {
+		questions, err := services.GetSessionQuestions(session)
+		if err != nil || len(questions) == 0 {
+			utils.Success(c, gin.H{
+				"status": "waiting",
+			})
+			return
+		}
+
+		if currentIndex < 0 || currentIndex >= len(questions) {
+			currentIndex = 0
+		}
+
+		utils.Success(c, gin.H{
+			"status":         "playing",
+			"sessionId":      session.ID,
+			"totalQuestions": session.TotalQuestions,
+			"currentIndex":   currentIndex,
+			"question":       questions[currentIndex],
+			"totalScore":     totalScore,
+			"completedCount": completedCount,
+			"gameType":       session.GameType,
+		})
+	}
 }
 
 // AdminGetAllRooms gets all rooms for admin

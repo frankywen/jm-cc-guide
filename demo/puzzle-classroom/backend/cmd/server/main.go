@@ -62,6 +62,7 @@ func main() {
 			auth.GET("/rooms/:id/gameState", handlers.GetCurrentGameState)
 			auth.POST("/rooms/:id/join", handlers.JoinRoom)
 			auth.POST("/rooms/:id/answer", handlers.SubmitAnswer)
+			auth.POST("/rooms/:id/skip", handlers.SkipQuestion)
 			auth.PUT("/rooms/:id/status", handlers.UpdateRoomStatus)
 			auth.DELETE("/rooms/:id", handlers.DeleteRoom)
 		}

@@ -12,15 +12,22 @@ import (
 )
 
 type CreateRoomRequest struct {
-	Name string `json:"name" binding:"required"`
+	Name     string `json:"name" binding:"required"`
+	GameType string `json:"gameType"` // game24 or sudoku, defaults to game24
 }
 
-func CreateRoom(teacherID, name string) (*models.Room, error) {
+func CreateRoom(teacherID, name string, gameType string) (*models.Room, error) {
+	if gameType == "" {
+		gameType = "game24"
+	}
+	if gameType != "game24" && gameType != "sudoku" {
+		gameType = "game24"
+	}
 	room := models.Room{
 		ID:        uuid.New().String(),
 		Name:      name,
 		TeacherID: teacherID,
-		GameType:  "game24",
+		GameType:  gameType,
 		Status:    "waiting",
 		CreatedAt: time.Now(),
 	}

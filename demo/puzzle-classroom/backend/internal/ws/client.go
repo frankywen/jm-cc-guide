@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-
-	"github.com/jm-cc-guide/puzzle-classroom/backend/internal/services"
 )
 
 const (
@@ -38,23 +36,16 @@ func GetUpgrader() *websocket.Upgrader {
 // ReadPump pumps messages from the websocket connection to the hub
 func (c *Client) ReadPump() {
 	defer func() {
-		// Broadcast student:left if a student disconnects during a game
+		// Broadcast student:left if a student disconnects
 		if c.Role == "student" && c.RoomID != "" {
-			// Get active session for the room
-			session, err := services.GetActiveSession(c.RoomID)
-			if err == nil {
-				// Get student's progress
-				progress, err := services.GetStudentProgress(session.ID, c.UserID)
-				if err == nil {
-					c.Hub.Broadcast(c.RoomID, Message{
-						Type: "student:left",
-						Data: map[string]interface{}{
-							"studentId": c.UserID,
-							"progress":  progress,
-						},
-					}, c.ID)
-				}
-			}
+			// Always notify teacher that student left
+			c.Hub.Broadcast(c.RoomID, Message{
+				Type: "student:left",
+				Data: map[string]interface{}{
+					"studentId": c.UserID,
+				},
+			}, c.ID)
+			log.Printf("[WS] Student %s left room %s", c.UserID, c.RoomID)
 		}
 		c.Hub.Unregister <- c
 		c.Conn.Close()

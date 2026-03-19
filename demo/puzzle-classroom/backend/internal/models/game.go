@@ -8,13 +8,21 @@ type GameSession struct {
 	RoomID         string    `json:"roomId" gorm:"not null;index"`
 	TotalQuestions int       `json:"totalQuestions" gorm:"not null"`
 	CurrentIndex   int       `json:"currentIndex" gorm:"default:0"` // Current question index (teacher-controlled)
-	Questions      string    `json:"questions" gorm:"not null"`     // JSON: "[[1,2,3,4],[5,6,7,8],...]"
+	Questions      string    `json:"questions" gorm:"not null"`     // JSON: "[[1,2,3,4],[5,6,7,8],...]" or SudokuQuestion JSON
 	Status         string    `json:"status" gorm:"default:active"`
+	GameType       string    `json:"gameType" gorm:"default:game24"` // game24 or sudoku
+	Difficulty     string    `json:"difficulty"`                     // For Sudoku: easy, medium, hard, etc.
 	CreatedAt      time.Time `json:"createdAt"`
 }
 
 func (GameSession) TableName() string {
 	return "game_sessions"
+}
+
+// SudokuQuestion represents a Sudoku puzzle with solution
+type SudokuQuestion struct {
+	Puzzle   string `json:"puzzle"`
+	Solution string `json:"solution"`
 }
 
 // StudentProgress tracks a student's progress in a game session
