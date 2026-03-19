@@ -83,7 +83,12 @@ export default function RoomList() {
     catch (err: any) { alert(err.response?.data?.message || '加入失败'); }
   };
 
-  const logout = () => { localStorage.clear(); navigate('/login'); };
+  const logout = () => {
+    if (confirm('确定要退出登录吗？')) {
+      localStorage.clear();
+      navigate('/login');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">

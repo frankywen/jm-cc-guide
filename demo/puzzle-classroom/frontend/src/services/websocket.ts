@@ -12,6 +12,7 @@ export type MessageType =
   | 'room:deleted'
   | 'room:updated'
   | 'user_joined'
+  | 'student:left'
   | 'error';
 
 export interface WSMessage {

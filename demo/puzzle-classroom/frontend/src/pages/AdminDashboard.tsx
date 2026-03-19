@@ -112,8 +112,10 @@ export default function AdminDashboard() {
   };
 
   const logout = () => {
-    localStorage.clear();
-    navigate('/login');
+    if (confirm('确定要退出登录吗？')) {
+      localStorage.clear();
+      navigate('/login');
+    }
   };
 
   const statusColors: Record<string, string> = {

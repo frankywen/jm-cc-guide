@@ -210,6 +210,15 @@ func SubmitAnswer(c *gin.Context) {
 				response["totalCompleted"] = progress.CompletedCount
 				response["totalQuestions"] = session.TotalQuestions
 				response["totalScore"] = progress.TotalScore
+				response["nextIndex"] = progress.CurrentIndex
+
+				// Return next question if not completed
+				if progress.CompletedCount < session.TotalQuestions {
+					nextQuestion, err := services.GetSessionQuestionByIndex(session, progress.CurrentIndex)
+					if err == nil {
+						response["nextQuestion"] = nextQuestion
+					}
+				}
 
 				// Broadcast progress update to teacher
 				allProgress, _ := services.GetSessionProgress(req.SessionID)

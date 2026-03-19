@@ -34,7 +34,12 @@ export default function TeacherDashboard() {
     catch (err) { console.error('Failed to delete room:', err); }
   };
 
-  const logout = () => { localStorage.clear(); navigate('/login'); };
+  const logout = () => {
+    if (confirm('确定要退出登录吗？')) {
+      localStorage.clear();
+      navigate('/login');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">

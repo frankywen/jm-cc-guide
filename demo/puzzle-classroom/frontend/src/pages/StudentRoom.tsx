@@ -36,6 +36,7 @@ export default function StudentRoom() {
   const [totalScore, setTotalScore] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [isAdvancing, setIsAdvancing] = useState(false);
 
   useEffect(() => {
     loadRoom();
@@ -147,11 +148,28 @@ export default function StudentRoom() {
         if (res.data.completed) {
           setIsCompleted(true);
         }
+        // Auto-advance to next question after 2 seconds if not completed
+        if (!res.data.completed && res.data.nextQuestion) {
+          setIsAdvancing(true);
+          setTimeout(() => {
+            setCurrentIndex(res.data.nextIndex);
+            setQuestion(res.data.nextQuestion);
+            setTimeSpent(0);
+            setResult(null);
+            setAnswer('');
+            setIsAdvancing(false);
+          }, 2000);
+        }
       }
     } catch (err) { console.error('Submit failed:', err); }
   };
 
-  const logout = () => { localStorage.clear(); navigate('/login'); };
+  const logout = () => {
+    if (confirm('确定要退出登录吗？')) {
+      localStorage.clear();
+      navigate('/login');
+    }
+  };
 
   if (!room) return <div className="min-h-screen flex items-center justify-center text-gray-500">加载中...</div>;
 
@@ -210,9 +228,13 @@ export default function StudentRoom() {
                     <div className="text-blue-700 font-bold mb-2">已完成全部题目！</div>
                     <div className="text-blue-600">最终得分: {totalScore} 分</div>
                   </div>
+                ) : isAdvancing ? (
+                  <div className="text-center text-primary-600 py-2 font-medium">
+                    正在加载下一题...
+                  </div>
                 ) : currentIndex < totalQuestions - 1 ? (
                   <div className="text-center text-gray-500 py-2">
-                    等待老师切换到下一题...
+                    即将进入下一题...
                   </div>
                 ) : (
                   <div className="text-center text-gray-500">

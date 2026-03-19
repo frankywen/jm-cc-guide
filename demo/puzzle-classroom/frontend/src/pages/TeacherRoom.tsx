@@ -34,6 +34,7 @@ export default function TeacherRoom() {
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [studentProgress, setStudentProgress] = useState<StudentProgress[]>([]);
+  const [disconnectedStudents, setDisconnectedStudents] = useState<Set<string>>(new Set());
 
   useEffect(() => { loadRoom(); connectWebSocket(); return () => wsService.disconnect(); }, [roomId]);
 
@@ -52,6 +53,7 @@ export default function TeacherRoom() {
       loadRoom();
     });
     wsService.on('progress:update', handleProgressUpdate);
+    wsService.on('student:left', handleStudentLeft);
     wsService.onConnect(() => {
       console.log('[TeacherRoom] WebSocket connected, joining room:', roomId);
       wsService.send({ type: 'join_room', roomId });
@@ -68,6 +70,23 @@ export default function TeacherRoom() {
     const data = msg.data as ProgressUpdateData;
     if (data.students) {
       setStudentProgress(data.students);
+    }
+  };
+
+  const handleStudentLeft = (msg: any) => {
+    console.log('[TeacherRoom] Student left:', msg.data);
+    const { studentId, progress } = msg.data;
+    // Mark student as disconnected
+    setDisconnectedStudents(prev => new Set(prev).add(studentId));
+    // Update progress with last known data
+    if (progress) {
+      setStudentProgress(prev => {
+        const exists = prev.find(p => p.studentId === studentId);
+        if (exists) {
+          return prev.map(p => p.studentId === studentId ? { ...p, ...progress } : p);
+        }
+        return [...prev, progress];
+      });
     }
   };
 
@@ -174,7 +193,12 @@ export default function TeacherRoom() {
     }
   };
 
-  const logout = () => { localStorage.clear(); navigate('/login'); };
+  const logout = () => {
+    if (confirm('确定要退出登录吗？')) {
+      localStorage.clear();
+      navigate('/login');
+    }
+  };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-500">加载中...</div>;
   if (!room) return <div className="min-h-screen flex items-center justify-center text-gray-500">房间不存在</div>;
@@ -243,9 +267,13 @@ export default function TeacherRoom() {
             {students.length === 0 ? <p className="text-gray-500 text-center py-4">暂无学生加入</p> :
               <div className="space-y-2">{students.map((s) => {
                 const progress = studentProgress.find(p => p.studentId === s.id);
+                const isDisconnected = disconnectedStudents.has(s.id);
                 return (
-                  <div key={s.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <span>{s.username}</span>
+                  <div key={s.id} className={`flex items-center justify-between p-2 bg-gray-50 rounded ${isDisconnected ? 'opacity-60' : ''}`}>
+                    <div className="flex items-center gap-2">
+                      <span>{s.username}</span>
+                      {isDisconnected && <span className="text-xs text-red-500 bg-red-100 px-1.5 py-0.5 rounded">已断开</span>}
+                    </div>
                     {progress && sessionId ? (
                       <div className="flex items-center gap-2">
                         <div className="w-24 bg-gray-200 rounded-full h-2">
@@ -258,7 +286,7 @@ export default function TeacherRoom() {
                         <span className="text-sm font-medium">{progress.totalScore}分</span>
                       </div>
                     ) : (
-                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                      <span className={`w-2 h-2 rounded-full ${isDisconnected ? 'bg-red-500' : 'bg-green-500'}`}></span>
                     )}
                   </div>
                 );
@@ -266,40 +294,57 @@ export default function TeacherRoom() {
           </div>
         </div>
 
-        {sessionId && studentProgress.length > 0 && (
-          <div className="mt-6 bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4">实时进度</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-left text-gray-500 text-sm">
-                    <th className="pb-2">学生</th>
-                    <th className="pb-2">进度</th>
-                    <th className="pb-2">完成题数</th>
-                    <th className="pb-2">总分</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {studentProgress.map((p) => (
-                    <tr key={p.studentId} className="border-t">
-                      <td className="py-2">{p.username}</td>
-                      <td className="py-2">
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-green-500 h-2 rounded-full transition-all"
-                            style={{ width: `${(p.completedCount / totalQuestions) * 100}%` }}
-                          />
-                        </div>
-                      </td>
-                      <td className="py-2">{p.completedCount}/{totalQuestions}</td>
-                      <td className="py-2 font-medium">{p.totalScore}</td>
+        {sessionId && studentProgress.length > 0 && (() => {
+          // Sort students by totalScore descending
+          const rankedProgress = [...studentProgress].sort((a, b) => b.totalScore - a.totalScore);
+          return (
+            <div className="mt-6 bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold mb-4">实时排行榜</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="text-left text-gray-500 text-sm">
+                      <th className="pb-2">排名</th>
+                      <th className="pb-2">学生</th>
+                      <th className="pb-2">进度</th>
+                      <th className="pb-2">完成题数</th>
+                      <th className="pb-2">总分</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {rankedProgress.map((p, index) => {
+                      const isDisconnected = disconnectedStudents.has(p.studentId);
+                      return (
+                        <tr key={p.studentId} className={`border-t ${index < 3 ? 'bg-yellow-50' : ''} ${isDisconnected ? 'opacity-60' : ''}`}>
+                          <td className="py-2">
+                            {index === 0 && <span className="text-xl">🥇</span>}
+                            {index === 1 && <span className="text-xl">🥈</span>}
+                            {index === 2 && <span className="text-xl">🥉</span>}
+                            {index > 2 && <span className="text-gray-500">#{index + 1}</span>}
+                          </td>
+                          <td className="py-2">
+                            <span className="font-medium">{p.username}</span>
+                            {isDisconnected && <span className="ml-2 text-xs text-red-500 bg-red-100 px-1.5 py-0.5 rounded">已断开</span>}
+                          </td>
+                          <td className="py-2">
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-green-500 h-2 rounded-full transition-all"
+                                style={{ width: `${(p.completedCount / totalQuestions) * 100}%` }}
+                              />
+                            </div>
+                          </td>
+                          <td className="py-2">{p.completedCount}/{totalQuestions}</td>
+                          <td className="py-2 font-bold text-primary-600">{p.totalScore}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );
