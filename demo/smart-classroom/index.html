@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>益智课堂 - 趣味数学游戏</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>益智课堂</h1>
+        <p>欢迎来到趣味数学课程！选择你想玩的游戏：</p>
+        <div class="game-grid">
+            <div class="game-card" data-game="take-throne">
+                <h3>智取王位</h3>
+                <p>策略游戏，锻炼逻辑思维</p>
+            </div>
+            <div class="game-card" data-game="four-puzzle">
+                <h3>四巧板</h3>
+                <p>拼图游戏，培养空间想象</p>
+            </div>
+            <div class="game-card" data-game="tangram">
+                <h3>七巧板</h3>
+                <p>经典拼图，激发创造力</p>
+            </div>
+            <div class="game-card" data-game="twenty-four">
+                <h3>24点</h3>
+                <p>数学计算，提高运算能力</p>
+            </div>
+            <div class="game-card" data-game="sudoku">
+                <h3>数独</h3>
+                <p>逻辑推理，训练思维能力</p>
+            </div>
+            <div class="game-card" data-game="hua-rong-dao">
+                <h3>华容道</h3>
+                <p>滑块 puzzle，培养解决问题能力</p>
+            </div>
+        </div>
+    </div>
+    
+    <div id="game-container" class="hidden">
+        <div class="game-header">
+            <button id="back-btn">返回</button>
+            <h2 id="game-title"></h2>
+        </div>
+        <div id="game-content"></div>
+    </div>
+    
+    <script src="games/take-throne.js"></script>
+    <script src="games/four-puzzle.js"></script>
+    <script src="games/tangram.js"></script>
+    <script src="games/twenty-four.js"></script>
+    <script src="games/sudoku.js"></script>
+    <script src="games/hua-rong-dao.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

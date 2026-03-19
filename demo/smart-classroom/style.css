@@ -1,0 +1,298 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f0f8ff;
+    color: #333;
+    font-size: 16px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    text-align: center;
+}
+
+h1 {
+    color: #4CAF50;
+    margin-bottom: 20px;
+    font-size: 2.5em;
+}
+
+p {
+    font-size: 1.2em;
+    margin-bottom: 30px;
+    color: #666;
+}
+
+.game-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-top: 30px;
+}
+
+.game-card {
+    background-color: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.game-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.game-card h3 {
+    color: #4CAF50;
+    margin-bottom: 10px;
+    font-size: 1.3em;
+}
+
+.game-card p {
+    font-size: 0.9em;
+    color: #777;
+    margin-bottom: 0;
+}
+
+#game-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+#back-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+}
+
+#back-btn:hover {
+    background-color: #45a049;
+}
+
+#game-title {
+    color: #4CAF50;
+    font-size: 2em;
+}
+
+#game-content {
+    background-color: white;
+    border-radius: 10px;
+    padding: 30px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    min-height: 400px;
+}
+
+.hidden {
+    display: none;
+}
+
+/* 游戏特定样式 */
+.game-board {
+    margin: 20px 0;
+}
+
+.game-controls {
+    margin-top: 20px;
+}
+
+button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 0 5px;
+    font-size: 1em;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+/* 24点游戏样式 */
+.number-btn {
+    width: 60px;
+    height: 60px;
+    font-size: 24px;
+    border: 2px solid #4CAF50;
+    border-radius: 10px;
+    background-color: white;
+    cursor: pointer;
+}
+
+.number-btn:disabled {
+    background-color: #f0f0f0;
+    cursor: not-allowed;
+}
+
+#twenty-four-operators button {
+    width: 50px;
+    height: 50px;
+    font-size: 18px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .game-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    h1 {
+        font-size: 2em;
+    }
+    
+    #game-title {
+        font-size: 1.5em;
+    }
+    
+    #game-content {
+        padding: 20px;
+    }
+    
+    .game-header {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    /* 调整游戏棋盘大小 */
+    #four-puzzle-board {
+        width: 250px !important;
+        height: 250px !important;
+    }
+    
+    #tangram-board {
+        width: 300px !important;
+        height: 300px !important;
+    }
+    
+    #sudoku-board {
+        grid-template-columns: repeat(9, 60px) !important;
+        grid-template-rows: repeat(9, 60px) !important;
+        width: 552px !important;
+        border: 2px solid #333 !important;
+    }
+    
+    #sudoku-board div {
+        width: 60px !important;
+        height: 60px !important;
+        font-size: 24px !important;
+    }
+    
+    #hua-rong-dao-board {
+        grid-template-columns: repeat(4, 60px) !important;
+        grid-template-rows: repeat(5, 60px) !important;
+        width: 246px !important;
+    }
+    
+    #hua-rong-dao-board div {
+        width: 60px !important;
+        height: 60px !important;
+    }
+    
+    /* 调整24点游戏元素大小 */
+    .number-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+    }
+    
+    #twenty-four-operators button {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .game-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    h1 {
+        font-size: 1.8em;
+    }
+    
+    #game-title {
+        font-size: 1.3em;
+    }
+    
+    .container {
+        padding: 10px;
+    }
+    
+    #game-content {
+        padding: 15px;
+    }
+    
+    /* 进一步调整游戏棋盘大小 */
+    #four-puzzle-board {
+        width: 200px !important;
+        height: 200px !important;
+    }
+    
+    #tangram-board {
+        width: 250px !important;
+        height: 250px !important;
+    }
+    
+    #sudoku-board {
+        grid-template-columns: repeat(9, 36px) !important;
+        grid-template-rows: repeat(9, 36px) !important;
+        width: 340px !important;
+        border: 2px solid #333 !important;
+    }
+    
+    #sudoku-board div {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 18px !important;
+    }
+    
+    #hua-rong-dao-board {
+        grid-template-columns: repeat(4, 50px) !important;
+        grid-template-rows: repeat(5, 50px) !important;
+        width: 206px !important;
+    }
+    
+    #hua-rong-dao-board div {
+        width: 50px !important;
+        height: 50px !important;
+    }
+    
+    /* 调整按钮大小 */
+    button {
+        padding: 8px 12px;
+        font-size: 0.9em;
+    }
+    
+    #back-btn {
+        padding: 8px 15px;
+    }
+}
