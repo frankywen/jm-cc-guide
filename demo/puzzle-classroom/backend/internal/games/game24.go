@@ -26,15 +26,174 @@ func getGlobalRand() *rand.Rand {
 
 // GenerateQuestion generates 4 random numbers (1-13) for the 24-point game
 func GenerateQuestion() []int {
+	return GenerateQuestionWithDifficulty("medium")
+}
+
+// GenerateQuestionWithDifficulty generates 4 random numbers based on difficulty
+// easy: numbers 1-9, guaranteed solvable
+// medium: numbers 1-13, mostly solvable
+// hard: numbers 1-20, may require complex operations
+func GenerateQuestionWithDifficulty(difficulty string) []int {
 	globalRandMu.Lock()
 	defer globalRandMu.Unlock()
 
 	r := getGlobalRand()
 	numbers := make([]int, 4)
-	for i := 0; i < 4; i++ {
-		numbers[i] = r.Intn(13) + 1
+
+	// Set parameters based on difficulty
+	maxNum := 13
+	guaranteeSolvable := false
+
+	switch difficulty {
+	case "easy":
+		maxNum = 9
+		guaranteeSolvable = true
+	case "medium":
+		maxNum = 13
+		guaranteeSolvable = true
+	case "hard":
+		maxNum = 20
+		guaranteeSolvable = false
+	default:
+		maxNum = 13
+		guaranteeSolvable = true
 	}
-	return numbers
+
+	// Generate numbers
+	for {
+		for i := 0; i < 4; i++ {
+			numbers[i] = r.Intn(maxNum) + 1
+		}
+
+		// If guarantee solvable, check if solution exists
+		if guaranteeSolvable {
+			if hasSolution(numbers) {
+				return numbers
+			}
+			// Try again if no solution
+		} else {
+			return numbers
+		}
+	}
+}
+
+// hasSolution checks if a 24-point puzzle has a solution
+// Uses a simple heuristic: many puzzles with small numbers are solvable
+func hasSolution(numbers []int) bool {
+	// Try to find a solution using brute force
+	return findSolution(numbers) != ""
+}
+
+// findSolution attempts to find a solution for the given numbers
+func findSolution(numbers []int) string {
+	// All possible permutations of 4 numbers
+	perms := permutations(numbers)
+
+	// All possible operations
+	ops := []string{"+", "-", "*", "/"}
+
+	for _, perm := range perms {
+		a, b, c, d := float64(perm[0]), float64(perm[1]), float64(perm[2]), float64(perm[3])
+
+		for _, op1 := range ops {
+			for _, op2 := range ops {
+				for _, op3 := range ops {
+					// Try different bracket combinations
+					// ((a op1 b) op2 c) op3 d
+					if r1 := calculate(a, op1, b); r1 != nil {
+						if r2 := calculate(*r1, op2, c); r2 != nil {
+							if r3 := calculate(*r2, op3, d); r3 != nil && math.Abs(*r3-24) < 0.0001 {
+								return "found"
+							}
+						}
+					}
+
+					// (a op1 (b op2 c)) op3 d
+					if r1 := calculate(b, op2, c); r1 != nil {
+						if r2 := calculate(a, op1, *r1); r2 != nil {
+							if r3 := calculate(*r2, op3, d); r3 != nil && math.Abs(*r3-24) < 0.0001 {
+								return "found"
+							}
+						}
+					}
+
+					// (a op1 b) op2 (c op3 d)
+					if r1 := calculate(a, op1, b); r1 != nil {
+						if r2 := calculate(c, op3, d); r2 != nil {
+							if r3 := calculate(*r1, op2, *r2); r3 != nil && math.Abs(*r3-24) < 0.0001 {
+								return "found"
+							}
+						}
+					}
+
+					// a op1 ((b op2 c) op3 d)
+					if r1 := calculate(b, op2, c); r1 != nil {
+						if r2 := calculate(*r1, op3, d); r2 != nil {
+							if r3 := calculate(a, op1, *r2); r3 != nil && math.Abs(*r3-24) < 0.0001 {
+								return "found"
+							}
+						}
+					}
+
+					// a op1 (b op2 (c op3 d))
+					if r1 := calculate(c, op3, d); r1 != nil {
+						if r2 := calculate(b, op2, *r1); r2 != nil {
+							if r3 := calculate(a, op1, *r2); r3 != nil && math.Abs(*r3-24) < 0.0001 {
+								return "found"
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return ""
+}
+
+// calculate performs a calculation and returns the result
+func calculate(a float64, op string, b float64) *float64 {
+	var result float64
+	switch op {
+	case "+":
+		result = a + b
+	case "-":
+		result = a - b
+	case "*":
+		result = a * b
+	case "/":
+		if b == 0 {
+			return nil
+		}
+		result = a / b
+	default:
+		return nil
+	}
+	return &result
+}
+
+// permutations generates all permutations of a slice
+func permutations(arr []int) [][]int {
+	var result [][]int
+	var permute func([]int, int)
+	permute = func(arr []int, n int) {
+		if n == 1 {
+			temp := make([]int, len(arr))
+			copy(temp, arr)
+			result = append(result, temp)
+			return
+		}
+		for i := 0; i < n; i++ {
+			permute(arr, n-1)
+			if n%2 == 1 {
+				arr[i], arr[n-1] = arr[n-1], arr[i]
+			} else {
+				arr[0], arr[n-1] = arr[n-1], arr[0]
+			}
+		}
+	}
+	permute(arr, len(arr))
+	return result
 }
 
 // ValidateAnswer checks if the answer uses exactly the 4 numbers and equals 24

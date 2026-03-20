@@ -467,6 +467,7 @@ func StartGame(c *gin.Context) {
 			"firstQuestion":  questions[0],
 			"currentIndex":   0,
 			"gameType":       room.GameType,
+			"difficulty":     session.Difficulty,
 		})
 	}
 

@@ -27,6 +27,13 @@ func GenerateGame24Question() *GameQuestion {
 	}
 }
 
+// GenerateGame24QuestionWithDifficulty generates a new 24-point game question with difficulty
+func GenerateGame24QuestionWithDifficulty(difficulty string) *GameQuestion {
+	return &GameQuestion{
+		Numbers: games.GenerateQuestionWithDifficulty(difficulty),
+	}
+}
+
 // GenerateSudokuQuestion generates a new Sudoku question
 func GenerateSudokuQuestion(difficulty string) *SudokuQuestionResponse {
 	puzzle := games.GenerateSudoku(difficulty)

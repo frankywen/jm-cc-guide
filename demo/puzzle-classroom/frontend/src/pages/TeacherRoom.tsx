@@ -103,7 +103,7 @@ export default function TeacherRoom() {
       const res: any = await api.post('/startGame', {
         roomId,
         questionCount,
-        difficulty: room?.gameType === 'sudoku' ? difficulty : undefined
+        difficulty
       });
       if (res.code === 0) {
         const { sessionId: newSessionId, totalQuestions: total, firstQuestion, gameType } = res.data;
@@ -346,6 +346,17 @@ export default function TeacherRoom() {
                       <option value="very-hard">非常困难</option>
                       <option value="insane">疯狂</option>
                       <option value="inhuman">非人类</option>
+                    </select>
+                  )}
+                  {room.gameType === 'game24' && (
+                    <select
+                      value={difficulty}
+                      onChange={(e) => setDifficulty(e.target.value)}
+                      className="px-4 py-2 border rounded-lg"
+                    >
+                      <option value="easy">简单 (1-9, 必有解)</option>
+                      <option value="medium">中等 (1-13, 必有解)</option>
+                      <option value="hard">困难 (1-20)</option>
                     </select>
                   )}
                   <button onClick={startGame} className="flex-1 bg-green-500 text-white py-2 rounded-lg">开始游戏</button>

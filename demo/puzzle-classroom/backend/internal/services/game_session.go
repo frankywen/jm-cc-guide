@@ -62,10 +62,13 @@ func CreateGameSessionWithType(roomID string, questionCount int, gameType string
 		}
 		questionsJSON, err = json.Marshal(questions)
 	} else {
-		// Generate 24-point game questions (default)
+		// Generate 24-point game questions with difficulty
+		if difficulty == "" {
+			difficulty = "medium"
+		}
 		questions := make([][]int, questionCount)
 		for i := 0; i < questionCount; i++ {
-			questions[i] = games.GenerateQuestion()
+			questions[i] = games.GenerateQuestionWithDifficulty(difficulty)
 		}
 		questionsJSON, err = json.Marshal(questions)
 	}
