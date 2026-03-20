@@ -295,9 +295,22 @@ export default function StudentRoom() {
     if (!sessionId) return;
 
     const isCorrect = Math.abs(finalValue - 24) < 0.0001;
-    const answerStr = operations.map(op =>
-      `${numberCards[op.num1Index].value}${op.operator}${numberCards[op.num2Index].value}=${op.result}`
-    ).join(', ');
+
+    // Build a mathematical expression from operations
+    // Format: build expression that can be evaluated
+    let answerStr = '';
+    if (operations.length > 0 && isCorrect) {
+      // Build expression - for validation, we send the calculation steps
+      // Backend will validate that the numbers used match the question
+      const steps = operations.map(op =>
+        `${numberCards[op.num1Index].value}${op.operator}${numberCards[op.num2Index].value}=${Math.round(op.result * 100) / 100}`
+      ).join(';');
+      answerStr = steps;
+    } else {
+      answerStr = operations.map(op =>
+        `${numberCards[op.num1Index].value}${op.operator}${numberCards[op.num2Index].value}=${op.result}`
+      ).join(', ');
+    }
 
     try {
       const res: any = await api.post('/rooms/' + roomId + '/answer', {

@@ -1,6 +1,7 @@
 package games
 
 import (
+	"math"
 	"math/rand"
 	"regexp"
 	"strconv"
@@ -38,7 +39,17 @@ func GenerateQuestion() []int {
 
 // ValidateAnswer checks if the answer uses exactly the 4 numbers and equals 24
 func ValidateAnswer(numbers []int, answer string) bool {
-	// Extract all numbers from the answer
+	// Try to parse as operation steps format first (e.g., "1+2=3;3*4=12;3+12=15;15+9=24")
+	if strings.Contains(answer, "=") && strings.Contains(answer, ";") {
+		return validateOperationSteps(numbers, answer)
+	}
+
+	// Also support comma-separated steps format (e.g., "1+2=3, 3*4=12")
+	if strings.Contains(answer, "=") && strings.Contains(answer, ",") {
+		return validateOperationStepsComma(numbers, answer)
+	}
+
+	// Extract all numbers from the answer (for math expression format)
 	re := regexp.MustCompile(`\d+`)
 	matches := re.FindAllString(answer, -1)
 	if len(matches) != 4 {
@@ -75,6 +86,213 @@ func ValidateAnswer(numbers []int, answer string) bool {
 	}
 
 	return result == 24
+}
+
+// validateOperationSteps validates answer in operation steps format (semicolon-separated)
+func validateOperationSteps(numbers []int, answer string) bool {
+	// Parse operations like "1+2=3;3*4=12;3+12=15;15+9=24"
+	steps := strings.Split(answer, ";")
+	if len(steps) == 0 {
+		return false
+	}
+
+	// Track available numbers (starting with question numbers)
+	availableNums := make(map[float64]int)
+	for _, n := range numbers {
+		availableNums[float64(n)]++
+	}
+
+	for i, step := range steps {
+		step = strings.TrimSpace(step)
+		if step == "" {
+			continue
+		}
+
+		// Parse step: "1+2=3"
+		parts := strings.Split(step, "=")
+		if len(parts) != 2 {
+			return false
+		}
+
+		expr := strings.TrimSpace(parts[0])
+		resultStr := strings.TrimSpace(parts[1])
+
+		// Extract numbers from expression
+		re := regexp.MustCompile(`[\d.]+`)
+		numMatches := re.FindAllString(expr, -1)
+		if len(numMatches) != 2 {
+			return false
+		}
+
+		num1, err := strconv.ParseFloat(numMatches[0], 64)
+		if err != nil {
+			return false
+		}
+		num2, err := strconv.ParseFloat(numMatches[1], 64)
+		if err != nil {
+			return false
+		}
+		result, err := strconv.ParseFloat(resultStr, 64)
+		if err != nil {
+			return false
+		}
+
+		// Find operator
+		var op byte
+		for j := 0; j < len(expr); j++ {
+			if expr[j] == '+' || expr[j] == '-' || expr[j] == '*' || expr[j] == '/' {
+				op = expr[j]
+				break
+			}
+		}
+
+		// Verify the operation result
+		var calcResult float64
+		switch op {
+		case '+':
+			calcResult = num1 + num2
+		case '-':
+			calcResult = num1 - num2
+		case '*':
+			calcResult = num1 * num2
+		case '/':
+			if num2 == 0 {
+				return false
+			}
+			calcResult = num1 / num2
+		default:
+			return false
+		}
+
+		// Allow small floating point errors
+		if math.Abs(calcResult-result) > 0.01 {
+			return false
+		}
+
+		// For the first step, verify numbers are from original question
+		if i == 0 {
+			// Decrement count for used numbers
+			if availableNums[num1] > 0 {
+				availableNums[num1]--
+			} else {
+				return false
+			}
+			if availableNums[num2] > 0 {
+				availableNums[num2]--
+			} else {
+				return false
+			}
+		}
+
+		// Add result to available numbers
+		availableNums[result]++
+	}
+
+	// Final result should be 24
+	return availableNums[24] > 0
+}
+
+// validateOperationStepsComma validates answer in operation steps format (comma-separated)
+func validateOperationStepsComma(numbers []int, answer string) bool {
+	// Parse operations like "1+2=3, 3*4=12"
+	steps := strings.Split(answer, ",")
+	if len(steps) == 0 {
+		return false
+	}
+
+	// Track available numbers (starting with question numbers)
+	availableNums := make(map[float64]int)
+	for _, n := range numbers {
+		availableNums[float64(n)]++
+	}
+
+	for i, step := range steps {
+		step = strings.TrimSpace(step)
+		if step == "" {
+			continue
+		}
+
+		// Parse step: "1+2=3"
+		parts := strings.Split(step, "=")
+		if len(parts) != 2 {
+			return false
+		}
+
+		expr := strings.TrimSpace(parts[0])
+		resultStr := strings.TrimSpace(parts[1])
+
+		// Extract numbers from expression
+		re := regexp.MustCompile(`[\d.]+`)
+		numMatches := re.FindAllString(expr, -1)
+		if len(numMatches) != 2 {
+			return false
+		}
+
+		num1, err := strconv.ParseFloat(numMatches[0], 64)
+		if err != nil {
+			return false
+		}
+		num2, err := strconv.ParseFloat(numMatches[1], 64)
+		if err != nil {
+			return false
+		}
+		result, err := strconv.ParseFloat(resultStr, 64)
+		if err != nil {
+			return false
+		}
+
+		// Find operator
+		var op byte
+		for j := 0; j < len(expr); j++ {
+			if expr[j] == '+' || expr[j] == '-' || expr[j] == '*' || expr[j] == '/' {
+				op = expr[j]
+				break
+			}
+		}
+
+		// Verify the operation result
+		var calcResult float64
+		switch op {
+		case '+':
+			calcResult = num1 + num2
+		case '-':
+			calcResult = num1 - num2
+		case '*':
+			calcResult = num1 * num2
+		case '/':
+			if num2 == 0 {
+				return false
+			}
+			calcResult = num1 / num2
+		default:
+			return false
+		}
+
+		// Allow small floating point errors
+		if math.Abs(calcResult-result) > 0.01 {
+			return false
+		}
+
+		// For the first step, verify numbers are from original question
+		if i == 0 {
+			if availableNums[num1] > 0 {
+				availableNums[num1]--
+			} else {
+				return false
+			}
+			if availableNums[num2] > 0 {
+				availableNums[num2]--
+			} else {
+				return false
+			}
+		}
+
+		// Add result to available numbers
+		availableNums[result]++
+	}
+
+	// Final result should be 24
+	return availableNums[24] > 0
 }
 
 // safeEval safely evaluates a mathematical expression
